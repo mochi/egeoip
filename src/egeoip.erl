@@ -8,8 +8,11 @@
 
 -behaviour(gen_server).
 
+%% record access API
+-export([get/2]).
+
 %% gen_server based API
--export([start/0, start/1, stop/0, lookup/1]).
+-export([start/0, start/1, stop/0, lookup/1, reload/0, reload/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, terminate/2, code_change/3,
@@ -158,8 +161,44 @@ Grenadines", "Venezuela", "Virgin Islands, British", "Virgin Islands, U.S.",
 -record(geoip, {country_code, country_code3, country_name, region,
 		city, postal_code, latitude, longitude, area_code, dma_code}).
 
+%% geoip record API
+
+get(R, country_code) ->
+    R#geoip.country_code;
+get(R, country_code3) ->
+    R#geoip.country_code3;
+get(R, country_name) ->
+    R#geoip.country_name;
+get(R, region) ->
+    R#geoip.region;
+get(R, city) ->
+    R#geoip.city;
+get(R, postal_code) ->
+    R#geoip.postal_code;
+get(R, latitude) ->
+    R#geoip.latitude;
+get(R, longitude) ->
+    R#geoip.longitude;
+get(R, area_code) ->
+    R#geoip.area_code;
+get(R, dma_code) ->
+    R#geoip.dma_code;
+get(R, List) when is_list(List) ->
+    [get(R, X) || X <- List].
+
 %% server API
 
+
+reload() ->
+    reload(city).
+
+reload(FileName) ->
+    case new(FileName) of
+	{ok, NewState} ->
+	    gen_server:call(?MODULE, {reload, NewState});
+	Error ->
+	    Error
+    end.
 
 start() ->
     start(city).
@@ -181,7 +220,9 @@ lookup(Address) ->
 
 handle_call({lookup, Address}, _From, State) ->
     Res = lookup(State, Address),
-    {reply, Res, State}.
+    {reply, Res, State};
+handle_call({restart, NewState}, _From, _State) ->
+    {reply, ok, NewState}.
 
 handle_cast(stop, State) ->
     {stop, normal, State}.
