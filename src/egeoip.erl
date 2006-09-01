@@ -298,38 +298,40 @@ new(Path) ->
 	    io:format("GeoLite City Database not found: ~p.~n", [Path]),
 	    io:format(
 	      "Download from: http://www.maxmind.com/app/geolitecity~n"),
-	    {error, dbnotfound}
+	    {error, geoip_db_not_found}
     end.
 
 %% @spec lookup(D::geoipdb(), Addr) -> {ok, geoip()}
 %% @doc Lookup a geoip record for Addr using the database D.
 lookup(D, Addr) when is_list(Addr) ->
     case ip2long(Addr) of
-	error ->
-	    error;
-	Addr ->    
-	    lookup(D, Addr)
+	{ok, Ip} ->    
+	    lookup(D, Ip);
+	Error ->
+	    Error
     end;
 lookup(D, Addr) ->
     get_record(D, Addr).
 
-%% @spec ip2long(Address) -> integer()
+%% @spec ip2long(Address) -> {ok, integer()}
 %% @doc Convert an IP address from a string, IPv4 tuple or IPv6 tuple to the
 %%      big endian integer representation.
 ip2long(Address) when is_integer(Address) ->
-    Address;
+    {ok, Address};
 ip2long(Address) when is_list(Address) ->
     case inet_parse:address(Address) of
 	{ok, Tuple} ->
 	    ip2long(Tuple);
-	{error, einval} ->
-	    error
+	Error ->
+	    Error
     end;
 ip2long({B3, B2, B1, B0}) ->
-    (B3 bsl 24) bor (B2 bsl 16) bor (B1 bsl 8) bor B0;
+    {ok, (B3 bsl 24) bor (B2 bsl 16) bor (B1 bsl 8) bor B0};
 ip2long({W7, W6, W5, W4, W3, W2, W1, W0}) ->
-    (W7 bsl 112) bor (W6 bsl 96) bor (W5 bsl 80) bor (W4 bsl 64) bor
-	(W3 bsl 48) bor (W2 bsl 32) bor (W1 bsl 16) bor W0.
+    {ok, (W7 bsl 112) bor (W6 bsl 96) bor (W5 bsl 80) bor (W4 bsl 64) bor
+	(W3 bsl 48) bor (W2 bsl 32) bor (W1 bsl 16) bor W0};
+ip2long(_) ->
+    {error, badmatch}.
 
 get_record(D, Ip) ->
     case seek_country(D, Ip) of
@@ -342,7 +344,7 @@ get_record(D, Ip) ->
 
 
 read_structures(_Path, _Data, _, 0) ->
-    error;
+    {error, read_structures_depth_exceeded};
 read_structures(Path, Data, Seek, N) ->
     <<_:Seek/binary, Delim:3/binary, _/binary>> = Data,
     case Delim of
@@ -414,20 +416,29 @@ seek_country(D, Ip) ->
     seek_country(D, Ip, 0, 31).
 
 seek_country(_D, _Ip, _Offset, -1) ->
-    error;
+    {error, seek_country_depth_exceeded};
 seek_country(D, Ip, Offset, Depth) ->
+    {X0, X1, Segments} = seek_country_data(D, Offset),
+    X = case (Ip band (1 bsl Depth)) of
+	    0 -> X0;
+	    _ -> X1
+	end,
+    case (X >= Segments) of
+	true ->
+	    {ok, X};
+	false ->
+	    seek_country(D, Ip, X, Depth - 1)
+    end.
+
+seek_country_data(D, Offset) ->
     RecordLength = D#geoipdb.record_length,
     RB = 8 * RecordLength,
     Seek = 2 * RecordLength * Offset,
     Data = D#geoipdb.data,
     <<_:Seek/binary, X0:RB/little, X1:RB/little, _/binary>> = Data,
     Segments = D#geoipdb.segments,
-    X = if (Ip band (1 bsl Depth)) == 0 -> X0;
-	   true -> X1
-	end,
-    if (X >= Segments) -> {ok, X};
-       true -> seek_country(D, Ip, X, Depth - 1)
-    end.
+    {X0, X1, Segments}.
+    
 
 find_null(<<0, _/binary>>, Index) ->
     Index;
