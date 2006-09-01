@@ -12,7 +12,7 @@
 -export([get/2]).
 
 %% gen_server based API
--export([start/0, start/1, stop/0, lookup/1, reload/0, reload/1]).
+-export([start/0, start/1, stop/0, lookup/1, reload/0, reload/1, filename/0]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, terminate/2, code_change/3,
@@ -22,11 +22,8 @@
 -export([new/1, new/0]).
 -export([lookup/2]).
 
-%% implementation
--export([seek_country/2]).
+%% useful utility functions
 -export([ip2long/1]).
--export([country_code/1, country_code3/1, country_name/1]).
--export([get_record/2]).
 
 -define(GEOIP_COUNTRY_BEGIN, 16776960).
 -define(GEOIP_STATE_BEGIN_REV0, 16700000).
@@ -156,12 +153,21 @@ Grenadines", "Venezuela", "Virgin Islands, British", "Virgin Islands, U.S.",
 -record(geoipdb, {type = ?GEOIP_COUNTRY_EDITION,
 		  record_length = ?STANDARD_RECORD_LENGTH,
 		  segments = 0,
-		  data = nil}).
+		  data = nil,
+		  filename = nil}).
 
 -record(geoip, {country_code, country_code3, country_name, region,
 		city, postal_code, latitude, longitude, area_code, dma_code}).
 
 %% geoip record API
+
+%% @type geoip_atom() = country_code | country_code3 | country_name |
+%%                      region | city | postal_code | latitude | longitude |
+%%                      area_code | dma_code
+%% @type geoip_field() = geoip_atom | [geoip_atom()]
+
+%% @spec get(R::geoip(), Field::geoip_field()) -> term()
+%% @doc Get a field from the geoip record returned by lookup.
 
 get(R, country_code) ->
     R#geoip.country_code;
@@ -188,10 +194,15 @@ get(R, List) when is_list(List) ->
 
 %% server API
 
-
+%% @spec reload() -> ok
+%% @doc Reload the existing database in this process and then change the
+%%      state of the running server.
 reload() ->
-    reload(city).
+    reload(filename()).
 
+%% @spec reload(Path) -> ok
+%% @doc Load the database at Path in this process and then change the
+%%      state of the running server with the new database.
 reload(FileName) ->
     case new(FileName) of
 	{ok, NewState} ->
@@ -200,62 +211,139 @@ reload(FileName) ->
 	    Error
     end.
 
+%% @spec start() -> {ok, Pid}
+%% @doc Start the server using the default priv/GeoLitecity.dat.gz database.
 start() ->
     start(city).
 
+%% @spec start(Path) -> {ok, Pid}
+%% @doc Start the server using the database at Path.
 start(FileName) ->
     gen_server:start_link(
       {local, ?MODULE}, ?MODULE, FileName, []).
 
+%% @spec stop() -> ok
+%% @doc Stop the server.
 stop() ->
     gen_server:cast(?MODULE, stop).
 
-init(FileName) ->
-    new(FileName).
-
+%% @spec lookup(Address) -> geoip()
+%% @doc Get a geoip() record for the given address. Fields can be obtained
+%%      from the record using get/2.
 lookup(Address) ->
     gen_server:call(?MODULE, {lookup, Address}).
 
+%% @spec filename() -> string()
+%% @doc Get the database filename currently being used by the server.
+filename() ->
+    gen_server:call(?MODULE, filename).
+
 %% gen_server callbacks
 
+%% @spec init(Path) -> {ok, State}
+%% @doc initialize the server with the database at Path.
+init(FileName) ->
+    new(FileName).
+
+%% @spec handle_call(Msg, From, State) -> term()
+%% @doc gen_server callback.
 handle_call({lookup, Address}, _From, State) ->
     Res = lookup(State, Address),
     {reply, Res, State};
-handle_call({restart, NewState}, _From, _State) ->
-    {reply, ok, NewState}.
+handle_call({reload, NewState}, _From, _State) ->
+    {reply, ok, NewState};
+handle_call(filename, _From, State) ->
+    {reply, State#geoipdb.filename, State}. 
 
+%% @spec handle_cast(Msg, State) -> term()
+%% @doc gen_server callback.
 handle_cast(stop, State) ->
     {stop, normal, State}.
 
+%% @spec terminate(Reason, State) -> ok
+%% @doc gen_server callback.
 terminate(_Reason, _State) ->
     ok.
 
+%% @spec code_change(OldVsn, State, Extra) -> NewState
+%% @doc gen_server callback.
 code_change(_OldVsn, State, _Extra) ->
     State.
 
+%% @spec handle_info(Info, State) -> {noreply, State}
+%% @doc gen_server callback.
 handle_info(Info, State) ->
     error_logger:info_report([{'INFO', Info}, {'State', State}]),
     {noreply, State}.
 
 %% Implementation
 
+%% @spec new() -> {ok, geoipdb()}
+%% @doc Create a new geoipdb database record using the default
+%%      priv/GeoLiteCity.dat.gz database.
 new() ->
     new(city).
 
+%% @spec new(Path) -> {ok, geoipdb()}
+%% @doc Create a new geoipdb database record using the database at Path.
 new(city) ->
     new(priv_path(["GeoLiteCity.dat.gz"]));
 new(Path) ->
-    Data = load_file(Path),
-    read_structures(Data, size(Data) - 3, ?STRUCTURE_INFO_MAX_SIZE).
+    case filelib:is_file(Path) of
+	true ->
+	    Data = load_file(Path),
+	    Max = ?STRUCTURE_INFO_MAX_SIZE,
+	    read_structures(Path, Data, size(Data) - 3, Max);
+	false ->
+	    io:format("GeoLite City Database not found: ~p.~n", [Path]),
+	    io:format(
+	      "Download from: http://www.maxmind.com/app/geolitecity~n"),
+	    {error, dbnotfound}
+    end.
 
+%% @spec lookup(D::geoipdb(), Addr) -> {ok, geoip()}
+%% @doc Lookup a geoip record for Addr using the database D.
 lookup(D, Addr) when is_list(Addr) ->
-    lookup(D, ip2long(Addr));
+    case ip2long(Addr) of
+	error ->
+	    error;
+	Addr ->    
+	    lookup(D, Addr)
+    end;
 lookup(D, Addr) ->
     get_record(D, Addr).
 
-read_structures(_Data, _, 0) ->
+%% @spec ip2long(Address) -> integer()
+%% @doc Convert an IP address from a string, IPv4 tuple or IPv6 tuple to the
+%%      big endian integer representation.
+ip2long(Address) when is_integer(Address) ->
+    Address;
+ip2long(Address) when is_list(Address) ->
+    case inet_parse:address(Address) of
+	{ok, Tuple} ->
+	    ip2long(Tuple);
+	{error, einval} ->
+	    error
+    end;
+ip2long({B3, B2, B1, B0}) ->
+    (B3 bsl 24) bor (B2 bsl 16) bor (B1 bsl 8) bor B0;
+ip2long({W7, W6, W5, W4, W3, W2, W1, W0}) ->
+    (W7 bsl 112) bor (W6 bsl 96) bor (W5 bsl 80) bor (W4 bsl 64) bor
+	(W3 bsl 48) bor (W2 bsl 32) bor (W1 bsl 16) bor W0.
+
+get_record(D, Ip) ->
+    case seek_country(D, Ip) of
+	{ok, SeekCountry} ->
+	    get_record(D, Ip, SeekCountry);
+	Error ->
+	    Error
+    end.
+
+
+
+read_structures(_Path, _Data, _, 0) ->
     error;
-read_structures(Data, Seek, N) ->
+read_structures(Path, Data, Seek, N) ->
     <<_:Seek/binary, Delim:3/binary, _/binary>> = Data,
     case Delim of
 	<<255, 255, 255>> ->
@@ -279,18 +367,11 @@ read_structures(Data, Seek, N) ->
 	    Rec = #geoipdb{type = Type,
 			   segments = Segments,
 			   record_length = Length,
-			   data = Data},
+			   data = Data,
+			   filename = Path},
 	    {ok, Rec};
 	_ ->
-	    read_structures(Data, Seek - 1, N - 1)
-    end.
-
-get_record(D, Ip) ->
-    case seek_country(D, Ip) of
-	{ok, SeekCountry} ->
-	    get_record(D, Ip, SeekCountry);
-	Error ->
-	    Error
+	    read_structures(Path, Data, Seek - 1, N - 1)
     end.
 
 
@@ -397,17 +478,6 @@ read_segments(Type, Data, Seek) when Type == ?GEOIP_CITY_EDITION_REV0;
     <<_:Seek/binary, Segments:Bits/little, _/binary>> = Data,
     Segments.
 
-ip2long(Address) when is_integer(Address) ->
-    Address;
-ip2long(Address) when is_list(Address) ->
-    {ok, Tuple} = inet_parse:address(Address),
-    ip2long(Tuple);
-ip2long({B3, B2, B1, B0}) ->
-    (B3 bsl 24) bor (B2 bsl 16) bor (B1 bsl 8) bor B0;
-ip2long({W7, W6, W5, W4, W3, W2, W1, W0}) ->
-    (W7 bsl 112) bor (W6 bsl 96) bor (W5 bsl 80) bor (W4 bsl 64) bor
-	(W3 bsl 48) bor (W2 bsl 32) bor (W1 bsl 16) bor W0.
-    
 
 priv_path(Components) ->
     {file, Here} = code:is_loaded(?MODULE),

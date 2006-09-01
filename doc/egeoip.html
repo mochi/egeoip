@@ -1,0 +1,131 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<title>Module egeoip</title>
+<link rel="stylesheet" type="text/css" href="stylesheet.css">
+</head>
+<body bgcolor="white">
+
+<h1>Module egeoip</h1>
+Geolocation by IP address.
+<p>Copyright © 2006 Bob Ippolito</p>
+<ul><li><a href="#description">Description</a></li><li><a href="#types">Data Types</a></li><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>
+<p><b>Behaviours:</b> <a href="gen_server.html"><tt>gen_server</tt></a>.</p>
+<p><b>Authors:</b> Bob Ippolito (<a href="mailto:bob@redivi.com"><tt>bob@redivi.com</tt></a>).</p>
+
+<h2><a name="description">Description</a></h2>Geolocation by IP address.
+<h2><a name="types">Data Types</a></h2>
+
+<h3><a name="type-geoip_atom">geoip_atom()</a></h3>
+<p><tt>geoip_atom() = country_code | country_code3 | country_name | region | city | postal_code | latitude | longitude | area_code | dma_code</tt></p>
+
+
+<h3><a name="type-geoip_field">geoip_field()</a></h3>
+<p><tt>geoip_field() = geoip_atom | [<a href="#type-geoip_atom">geoip_atom()</a>]</tt></p>
+
+
+<h2><a name="index">Function Index</a></h2>
+<table width="100%" border="1"><tr><td valign="top"><a href="#code_change-3">code_change/3</a></td><td>gen_server callback.</td></tr>
+<tr><td valign="top"><a href="#filename-0">filename/0</a></td><td>Get the database filename currently being used by the server.</td></tr>
+<tr><td valign="top"><a href="#get-2">get/2</a></td><td>Get a field from the geoip record returned by lookup.</td></tr>
+<tr><td valign="top"><a href="#handle_call-3">handle_call/3</a></td><td>gen_server callback.</td></tr>
+<tr><td valign="top"><a href="#handle_cast-2">handle_cast/2</a></td><td>gen_server callback.</td></tr>
+<tr><td valign="top"><a href="#handle_info-2">handle_info/2</a></td><td>gen_server callback.</td></tr>
+<tr><td valign="top"><a href="#init-1">init/1</a></td><td>initialize the server with the database at Path.</td></tr>
+<tr><td valign="top"><a href="#ip2long-1">ip2long/1</a></td><td>Convert an IP address from a string, IPv4 tuple or IPv6 tuple to the
+       big endian integer representation.</td></tr>
+<tr><td valign="top"><a href="#lookup-1">lookup/1</a></td><td>Get a geoip() record for the given address.</td></tr>
+<tr><td valign="top"><a href="#lookup-2">lookup/2</a></td><td>Lookup a geoip record for Addr using the database D.</td></tr>
+<tr><td valign="top"><a href="#new-0">new/0</a></td><td>Create a new geoipdb database record using the default
+       priv/GeoLiteCity.dat.gz database.</td></tr>
+<tr><td valign="top"><a href="#new-1">new/1</a></td><td>Create a new geoipdb database record using the database at Path.</td></tr>
+<tr><td valign="top"><a href="#reload-0">reload/0</a></td><td>Reload the existing database in this process and then change the
+       state of the running server.</td></tr>
+<tr><td valign="top"><a href="#reload-1">reload/1</a></td><td>Load the database at Path in this process and then change the
+       state of the running server with the new database.</td></tr>
+<tr><td valign="top"><a href="#start-0">start/0</a></td><td>Start the server using the default priv/GeoLitecity.dat.gz database.</td></tr>
+<tr><td valign="top"><a href="#start-1">start/1</a></td><td>Start the server using the database at Path.</td></tr>
+<tr><td valign="top"><a href="#stop-0">stop/0</a></td><td>Stop the server.</td></tr>
+<tr><td valign="top"><a href="#terminate-2">terminate/2</a></td><td>gen_server callback.</td></tr>
+</table>
+
+<h2><a name="functions">Function Details</a></h2>
+
+<h3><a name="code_change-3">code_change/3</a></h3>
+<p><tt>code_change(OldVsn, State, Extra) -&gt; NewState</tt></p>
+<p>gen_server callback.</p>
+
+<h3><a name="filename-0">filename/0</a></h3>
+<p><tt>filename() -&gt; string()</tt></p>
+<p>Get the database filename currently being used by the server.</p>
+
+<h3><a name="get-2">get/2</a></h3>
+<p><tt>get(R::<a href="#type-geoip">geoip()</a>, Field::<a href="#type-geoip_field">geoip_field()</a>) -&gt; term()</tt></p>
+<p>Get a field from the geoip record returned by lookup.</p>
+
+<h3><a name="handle_call-3">handle_call/3</a></h3>
+<p><tt>handle_call(X1::Msg, From, State) -&gt; term()</tt></p>
+<p>gen_server callback.</p>
+
+<h3><a name="handle_cast-2">handle_cast/2</a></h3>
+<p><tt>handle_cast(X1::Msg, State) -&gt; term()</tt></p>
+<p>gen_server callback.</p>
+
+<h3><a name="handle_info-2">handle_info/2</a></h3>
+<p><tt>handle_info(Info, State) -&gt; {noreply, State}</tt></p>
+<p>gen_server callback.</p>
+
+<h3><a name="init-1">init/1</a></h3>
+<p><tt>init(FileName::Path) -&gt; {ok, State}</tt></p>
+<p>initialize the server with the database at Path.</p>
+
+<h3><a name="ip2long-1">ip2long/1</a></h3>
+<p><tt>ip2long(Address) -&gt; integer()</tt></p>
+<p>Convert an IP address from a string, IPv4 tuple or IPv6 tuple to the
+       big endian integer representation.</p>
+
+<h3><a name="lookup-1">lookup/1</a></h3>
+<p><tt>lookup(Address) -&gt; <a href="#type-geoip">geoip()</a></tt></p>
+<p>Get a geoip() record for the given address. Fields can be obtained
+       from the record using get/2.</p>
+
+<h3><a name="lookup-2">lookup/2</a></h3>
+<p><tt>lookup(D::<a href="#type-geoipdb">geoipdb()</a>, Addr) -&gt; {ok, <a href="#type-geoip">geoip()</a>}</tt></p>
+<p>Lookup a geoip record for Addr using the database D.</p>
+
+<h3><a name="new-0">new/0</a></h3>
+<p><tt>new() -&gt; {ok, <a href="#type-geoipdb">geoipdb()</a>}</tt></p>
+<p>Create a new geoipdb database record using the default
+       priv/GeoLiteCity.dat.gz database.</p>
+
+<h3><a name="new-1">new/1</a></h3>
+<p><tt>new(Path) -&gt; {ok, <a href="#type-geoipdb">geoipdb()</a>}</tt></p>
+<p>Create a new geoipdb database record using the database at Path.</p>
+
+<h3><a name="reload-0">reload/0</a></h3>
+<p><tt>reload() -&gt; ok</tt></p>
+<p>Reload the existing database in this process and then change the
+       state of the running server.</p>
+
+<h3><a name="reload-1">reload/1</a></h3>
+<p><tt>reload(FileName::Path) -&gt; ok</tt></p>
+<p>Load the database at Path in this process and then change the
+       state of the running server with the new database.</p>
+
+<h3><a name="start-0">start/0</a></h3>
+<p><tt>start() -&gt; {ok, Pid}</tt></p>
+<p>Start the server using the default priv/GeoLitecity.dat.gz database.</p>
+
+<h3><a name="start-1">start/1</a></h3>
+<p><tt>start(FileName::Path) -&gt; {ok, Pid}</tt></p>
+<p>Start the server using the database at Path.</p>
+
+<h3><a name="stop-0">stop/0</a></h3>
+<p><tt>stop() -&gt; ok</tt></p>
+<p>Stop the server.</p>
+
+<h3><a name="terminate-2">terminate/2</a></h3>
+<p><tt>terminate(Reason, State) -&gt; ok</tt></p>
+<p>gen_server callback.</p>
+</body>
+</html>
