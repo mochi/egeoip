@@ -415,20 +415,12 @@ priv_path(Components) ->
     filename:join([AppDir, "priv" | Components]).
 
 load_file(Path) ->
-    Mode = case filename:extension(Path) of
-	       ".gz" ->
-		   [compressed];
-	       _ ->
-		   []
-	   end,
-    {ok, Io} = file:open(Path, [read, raw, binary | Mode]),
-    read_all(Io, []).
-
-read_all(Io, Acc) ->	   
-    case file:read(Io, 65536) of
-	eof ->
-	    iolist_to_binary(lists:reverse(Acc));
-	{ok, Data} ->
-	    read_all(Io, [Data | Acc])
+    case file:read_file(Path) of
+	{ok, Raw} ->
+	    case filename:extension(Path) of
+		".gz" ->
+		    zlib:gunzip(Raw);
+		_ ->
+		    Raw
+	    end
     end.
-
