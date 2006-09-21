@@ -25,6 +25,9 @@
 %% useful utility functions
 -export([ip2long/1]).
 
+%% little benchmark function
+-export([bench/0]).
+
 -define(GEOIP_COUNTRY_BEGIN, 16776960).
 -define(GEOIP_STATE_BEGIN_REV0, 16700000).
 -define(GEOIP_STATE_BEGIN_REV1, 16000000).
@@ -505,3 +508,38 @@ load_file(Path) ->
 		    Raw
 	    end
     end.
+
+benchcall(Fun, 1) ->
+    Fun();
+benchcall(Fun, Times) ->
+    Fun(),
+    benchcall(Fun, Times - 1).
+
+pytime({MegaSecs, Secs, MicroSecs}) ->
+    (1.0e+6 * MegaSecs) + Secs + (1.0e-6 * MicroSecs).
+
+bench() ->
+    SampleIPs = ["63.224.214.117",
+		 "144.139.80.91",
+		 "88.233.53.82",
+		 "85.250.32.5",
+		 "220.189.211.182",
+		 "211.112.118.99",
+		 "84.94.205.244",
+		 "61.16.226.206",
+		 "64.180.1.78",
+		 "138.217.4.11"],
+    %% make the file hot in cache
+    {ok, D} = new(),
+    StartLoad = now(),
+    benchcall(fun new/0, 10),
+    EndLoad = now(),
+    DbTime = {load_10_db, pytime(EndLoad) - pytime(StartLoad)},
+    io:format("~p~n", [DbTime]),
+    StartParse = now(),
+    benchcall(fun () -> [lookup(D, X) || X <- SampleIPs] end, 10000),
+    EndParse = now(),
+    ParseTime = {parse_100k_addr, pytime(EndParse) - pytime(StartParse)},
+    io:format("~p~n", [ParseTime]),
+    [DbTime, ParseTime].
+     
