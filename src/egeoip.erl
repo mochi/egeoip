@@ -8,6 +8,8 @@
 
 -behaviour(gen_server).
 
+-compile(export_all).
+
 %% record access API
 -export([get/2]).
 
@@ -26,7 +28,7 @@
 -export([ip2long/1]).
 
 %% little benchmark function
--export([bench/0]).
+-export([bench/0, bench/1]).
 
 -define(GEOIP_COUNTRY_BEGIN, 16776960).
 -define(GEOIP_STATE_BEGIN_REV0, 16700000).
@@ -157,7 +159,11 @@ Grenadines", "Venezuela", "Virgin Islands, British", "Virgin Islands, U.S.",
 		  record_length = ?STANDARD_RECORD_LENGTH,
 		  segments = 0,
 		  data = nil,
-		  filename = nil}).
+		  filename = nil,
+		  country_codes = ?GEOIP_COUNTRY_CODES,
+		  country_codes3 = ?GEOIP_COUNTRY_CODES3,
+		  country_names = ?GEOIP_COUNTRY_NAMES
+		 }).
 
 -record(geoip, {country_code, country_code3, country_name, region,
 		city, postal_code, latitude, longitude, area_code, dma_code}).
@@ -316,17 +322,45 @@ lookup(D, Addr) when is_list(Addr) ->
 lookup(D, Addr) ->
     get_record(D, Addr).
 
+address_fast([N], Num, 0) when N >= $0, N =< $9 ->
+    Num bor (N - $0);
+address_fast([N0, N1], Num, 0) when N0 >= $1, N0 =< $9, N1 >= $0, N1 =< $9 ->
+    Num bor (((N0 - $0) * 100) + (N1 - $0));
+address_fast([N0, N1, N2], Num, 0)
+  when N0 >= $1, N0 =< $2, N1 >= $0, N1 =< $9, N2 >= $0, N2 =< $9 ->
+    case ((N0 - $0) * 100) + ((N1 - $0) * 10) + (N1 - $0) of
+	N when N =< 255 ->
+	    Num bor N
+    end;
+address_fast([N, $. | Rest], Num, Shift) when Shift >= 8, N >= $0, N =< $9 ->
+    address_fast(Rest, Num bor ((N - $0) bsl Shift), Shift - 8);
+address_fast([N0, N1, $. | Rest], Num, Shift) 
+  when Shift >= 8, N0 >= $1, N0 =< $9, N1 >= $0, N1 =< $9 ->
+    N = ((N0 - $0) * 10) + (N1 - $0),
+    address_fast(Rest, Num bor (N bsl Shift), Shift - 8);
+address_fast([N0, N1, N2, $. | Rest], Num, Shift) 
+  when Shift >= 8, N0 >= $1, N0 =< $2, N1 >= $0, N1 =< $9, N2 >= $0, N2 =< $9 ->
+    case ((N0 - $0) * 100) + ((N1 - $0) * 10) + (N1 - $0) of
+	N when N =< 255 ->
+	    address_fast(Rest, Num bor (N bsl Shift), Shift - 8)
+    end.
+	
 %% @spec ip2long(Address) -> {ok, integer()}
 %% @doc Convert an IP address from a string, IPv4 tuple or IPv6 tuple to the
 %%      big endian integer representation.
 ip2long(Address) when is_integer(Address) ->
     {ok, Address};
 ip2long(Address) when is_list(Address) ->
-    case inet_parse:address(Address) of
-	{ok, Tuple} ->
-	    ip2long(Tuple);
-	Error ->
-	    Error
+    case catch address_fast(Address, 0, 24) of
+	N when is_integer(N) ->
+	    {ok, N};
+	_ ->
+	    case inet_parse:address(Address) of
+		{ok, Tuple} ->
+		    ip2long(Tuple);
+		Error ->
+		    Error
+	    end
     end;
 ip2long({B3, B2, B1, B0}) ->
     {ok, (B3 bsl 24) bor (B2 bsl 16) bor (B1 bsl 8) bor B0};
@@ -384,18 +418,19 @@ get_record(D, _Ip, SeekCountry) ->
     Length = D#geoipdb.record_length,
     Segments = D#geoipdb.segments,
     Seek = SeekCountry + (((2 * Length) - 1) * Segments),
-    <<_:Seek/binary, CountryNum, D0/binary>> = D#geoipdb.data,
-    Country = country_code(CountryNum),
-    Country3 = country_code3(CountryNum),
-    CountryName = country_name(CountryNum),
-    {Region, D1} = split_null(D0),
-    {City, D2} = split_null(D1),
-    {Postal, D3} = split_null(D2),
-    <<RawLat:24/little, RawLon:24/little, D4/binary>> = D3,
+    Data = D#geoipdb.data,
+    <<_:Seek/binary, CountryNum, _/binary>> = Data,
+    Country = country_code(D, CountryNum),
+    Country3 = country_code3(D, CountryNum),
+    CountryName = country_name(D, CountryNum),
+    {Region, Seek1} = until_null(Data, Seek + 1, 0),
+    {City, Seek2} = until_null(Data, Seek1, 0),
+    {Postal, Seek3} = until_null(Data, Seek2, 0),
+    <<_:Seek3/binary, RawLat:24/little, RawLon:24/little, _/binary>> = Data,
     Lat = (RawLat / 10000) - 180,
     Lon = (RawLon / 10000) - 180,
     Type = D#geoipdb.type,
-    {DmaCode, AreaCode} = get_record_ex(Type, Country, D4),
+    {DmaCode, AreaCode} = get_record_ex(Type, Country, Data, Seek3 + 6),
     Record = #geoip{country_code = Country,
 		    country_code3 = Country3,
 		    country_name = CountryName,
@@ -408,9 +443,10 @@ get_record(D, _Ip, SeekCountry) ->
 		    area_code = AreaCode},
     {ok, Record}.
 				  
-get_record_ex(?GEOIP_CITY_EDITION_REV1, "US", <<Combo:24/little, _/binary>>) ->
+get_record_ex(?GEOIP_CITY_EDITION_REV1, "US", Data, Seek) ->
+    <<_:Seek/binary, Combo:24/little, _/binary>> = Data,
     {Combo div 1000, Combo rem 1000};
-get_record_ex(_, _, _) ->
+get_record_ex(_, _, _, _) ->
     {0, 0}.
     
 
@@ -421,68 +457,55 @@ seek_country(D, Ip) ->
 seek_country(_D, _Ip, _Offset, -1) ->
     {error, seek_country_depth_exceeded};
 seek_country(D, Ip, Offset, Depth) ->
-    {X0, X1, Segments} = seek_country_data(D, Offset),
+    RecordLength = D#geoipdb.record_length,
+    RB = 8 * RecordLength,
+    Seek = 2 * RecordLength * Offset,
+    <<_:Seek/binary, X0:RB/little, X1:RB/little, _/binary>> = D#geoipdb.data,
     X = case (Ip band (1 bsl Depth)) of
 	    0 -> X0;
 	    _ -> X1
 	end,
-    case (X >= Segments) of
+    case (X >= D#geoipdb.segments) of
 	true ->
 	    {ok, X};
 	false ->
 	    seek_country(D, Ip, X, Depth - 1)
     end.
-
-seek_country_data(D, Offset) ->
-    RecordLength = D#geoipdb.record_length,
-    RB = 8 * RecordLength,
-    Seek = 2 * RecordLength * Offset,
-    Data = D#geoipdb.data,
-    <<_:Seek/binary, X0:RB/little, X1:RB/little, _/binary>> = Data,
-    Segments = D#geoipdb.segments,
-    {X0, X1, Segments}.
+    
+until_null(Binary, Start, Index) ->
+    Skip = Start + Index,
+    <<_:Skip/binary, Byte, _/binary>> = Binary,
+    case Byte of
+	0 ->
+	    Length = Skip - Start,
+	    <<_:Start/binary, Result:Length/binary, _/binary>> = Binary,
+	    {Result, 1 + Skip};
+	_ ->
+	    until_null(Binary, Start, 1 + Index)
+    end.
     
 
-find_null(<<0, _/binary>>, Index) ->
-    Index;
-find_null(<<_, Rest/binary>>, Index) ->
-    find_null(Rest, 1 + Index).
+country_code(D, Number) ->
+    try
+	element(Number, D#geoipdb.country_codes)
+    catch
+	error:badarg -> ""
+    end.
 
-split_null(Data) ->
-    Length = find_null(Data, 0),
-    <<String:Length/binary, 0, Rest/binary>> = Data,
-    {String, Rest}.
+country_code3(D, Number) ->
+    try
+	element(Number, D#geoipdb.country_codes3)
+    catch
+	error:badarg -> ""
+    end.
 
-country_code(Number) when Number > 0 ->
-    Codes = ?GEOIP_COUNTRY_CODES,
-    if Number > size(Codes) ->
-	    "";
-       true ->
-	    element(Number, Codes)
-    end;
-country_code(_) ->
-    "".
-
-country_code3(Number) when Number > 0 ->
-    Codes = ?GEOIP_COUNTRY_CODES3,
-    if Number > size(Codes) ->
-	    "";
-       true ->
-	    element(Number, Codes)
-    end;
-country_code3(_) ->
-    "".
-
-country_name(Number) when Number > 0 ->
-    Names = ?GEOIP_COUNTRY_NAMES,
-    if Number > size(Names) ->
-	    "";
-       true ->
-	    element(Number, Names)
-    end;
-country_name(_) ->
-    "".
-    
+country_name(D, Number) ->
+    try
+	element(Number, D#geoipdb.country_names)
+    catch
+	error:badarg -> ""
+    end.
+        
 read_segments(Type, Data, Seek) when Type == ?GEOIP_CITY_EDITION_REV0;
 				     Type == ?GEOIP_CITY_EDITION_REV1;
 				     Type == ?GEOIP_ORG_EDITION;
@@ -518,7 +541,7 @@ benchcall(Fun, Times) ->
 pytime({MegaSecs, Secs, MicroSecs}) ->
     (1.0e+6 * MegaSecs) + Secs + (1.0e-6 * MicroSecs).
 
-bench() ->
+bench(Count) ->
     SampleIPs = ["63.224.214.117",
 		 "144.139.80.91",
 		 "88.233.53.82",
@@ -529,17 +552,11 @@ bench() ->
 		 "61.16.226.206",
 		 "64.180.1.78",
 		 "138.217.4.11"],
-    %% make the file hot in cache
     {ok, D} = new(),
-    StartLoad = now(),
-    benchcall(fun new/0, 10),
-    EndLoad = now(),
-    DbTime = {load_10_db, pytime(EndLoad) - pytime(StartLoad)},
-    io:format("~p~n", [DbTime]),
     StartParse = now(),
-    benchcall(fun () -> [lookup(D, X) || X <- SampleIPs] end, 10000),
+    benchcall(fun () -> [lookup(D, X) || X <- SampleIPs] end, Count),
     EndParse = now(),
-    ParseTime = {parse_100k_addr, pytime(EndParse) - pytime(StartParse)},
-    io:format("~p~n", [ParseTime]),
-    [DbTime, ParseTime].
-     
+    {parse_100k_addr, pytime(EndParse) - pytime(StartParse)}.
+
+bench() ->
+    bench(10000).
