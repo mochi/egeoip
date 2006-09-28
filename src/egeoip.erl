@@ -548,10 +548,11 @@ bench(Count) ->
 		 "61.16.226.206",
 		 "64.180.1.78",
 		 "138.217.4.11"],
-    {ok, D} = new(),
+    {ok, _} = start(),
     StartParse = now(),
-    benchcall(fun () -> [lookup(D, X) || X <- SampleIPs] end, Count),
+    benchcall(fun () -> [lookup(X) || X <- SampleIPs] end, Count),
     EndParse = now(),
+    ok = stop(),
     {parse_100k_addr, pytime(EndParse) - pytime(StartParse)}.
 
 bench() ->
