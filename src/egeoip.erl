@@ -318,27 +318,35 @@ lookup(D, Addr) when is_list(Addr) ->
 lookup(D, Addr) ->
     get_record(D, Addr).
 
-address_fast([N], Num, 0) when N >= $0, N =< $9 ->
-    Num bor (N - $0);
-address_fast([N0, N1], Num, 0) when N0 >= $1, N0 =< $9, N1 >= $0, N1 =< $9 ->
-    Num bor (((N0 - $0) * 100) + (N1 - $0));
-address_fast([N0, N1, N2], Num, 0)
-  when N0 >= $1, N0 =< $2, N1 >= $0, N1 =< $9, N2 >= $0, N2 =< $9 ->
-    case ((N0 - $0) * 100) + ((N1 - $0) * 10) + (N1 - $0) of
+address_fast([N2, N1, N0, $. | Rest], Num, Shift) when Shift >= 8 ->
+    case ((N2 - $0) * 100) + ((N1 - $0) * 10) + (N0 - $0) of
+	N when N =< 255 ->
+	    address_fast(Rest, Num bor (N bsl Shift), Shift - 8)
+    end;
+address_fast([N1, N0, $. | Rest], Num, Shift) when Shift >= 8 ->
+    case ((N1 - $0) * 10) + (N0 - $0) of
+	N when N =< 255 ->
+	    address_fast(Rest, Num bor (N bsl Shift), Shift - 8)
+    end;
+address_fast([N0, $. | Rest], Num, Shift) when Shift >= 8 ->
+    case N0 - $0 of
+	N when N =< 255 ->
+	    address_fast(Rest, Num bor (N bsl Shift), Shift - 8)
+    end;
+address_fast([N2, N1, N0], Num, 0) ->
+    case ((N2 - $0) * 100) + ((N1 - $0) * 10) + (N0 - $0) of
 	N when N =< 255 ->
 	    Num bor N
     end;
-address_fast([N, $. | Rest], Num, Shift) when Shift >= 8, N >= $0, N =< $9 ->
-    address_fast(Rest, Num bor ((N - $0) bsl Shift), Shift - 8);
-address_fast([N0, N1, $. | Rest], Num, Shift) 
-  when Shift >= 8, N0 >= $1, N0 =< $9, N1 >= $0, N1 =< $9 ->
-    N = ((N0 - $0) * 10) + (N1 - $0),
-    address_fast(Rest, Num bor (N bsl Shift), Shift - 8);
-address_fast([N0, N1, N2, $. | Rest], Num, Shift) 
-  when Shift >= 8, N0 >= $1, N0 =< $2, N1 >= $0, N1 =< $9, N2 >= $0, N2 =< $9 ->
-    case ((N0 - $0) * 100) + ((N1 - $0) * 10) + (N1 - $0) of
+address_fast([N1, N0], Num, 0) ->
+    case ((N1 - $0) * 10) + (N0 - $0) of
 	N when N =< 255 ->
-	    address_fast(Rest, Num bor (N bsl Shift), Shift - 8)
+	    Num bor N
+    end;
+address_fast([N0], Num, 0) ->
+    case N0 - $0 of
+	N when N =< 255 ->
+	    Num bor N
     end.
 	
 %% @spec ip2long(Address) -> {ok, integer()}
@@ -382,12 +390,24 @@ read_structures(Path, Data, Seek, N) ->
     <<_:Seek/binary, Delim:3/binary, _/binary>> = Data,
     case Delim of
 	<<255, 255, 255>> ->
-	    <<_:Seek/binary, _:3/binary, Type, _/binary>> = Data,
+	    <<_:Seek/binary, _:3/binary, DbType, _/binary>> = Data,
+	    Type = case DbType >= 106 of 
+		       true ->
+			   DbType - 105;
+		       false ->
+			   DbType
+		   end,
 	    Segments = case Type of
 			   ?GEOIP_REGION_EDITION_REV0 ->
 			       ?GEOIP_STATE_BEGIN_REV0;
 			   ?GEOIP_REGION_EDITION_REV1 ->
 			       ?GEOIP_STATE_BEGIN_REV1;
+			   ?GEOIP_COUNTRY_EDITION ->
+			       ?GEOIP_COUNTRY_BEGIN;
+			   ?GEOIP_PROXY_EDITION ->
+			       ?GEOIP_COUNTRY_BEGIN;
+			   ?GEOIP_NETSPEED_EDITION ->
+			       ?GEOIP_COUNTRY_BEGIN;
 			   _ ->
 			       read_segments(Type, Data, Seek + 4)
 		       end,
@@ -557,3 +577,19 @@ bench(Count) ->
 
 bench() ->
     bench(10000).
+
+test() ->
+    {ok, IpAddressLong} = ip2long({207,145,216,106}),
+    {ok, IpAddressLong} = ip2long("207.145.216.106"),
+    egeoip:start(),
+    {ok, R} = egeoip:lookup(IpAddressLong),
+    #geoip{country_code = "US",
+	   country_code3 = "USA",
+	   country_name = "United States",
+	   region= <<"CA">>,
+           city= <<"San Francisco">>,
+           postal_code = <<"">>,
+           latitude = 3.776450e+01,
+	   longitude = -1.224294e+02,
+	   area_code = 415,
+	   dma_code = 807} = R.
