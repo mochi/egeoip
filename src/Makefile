@@ -1,13 +1,8 @@
-
 include ../support/include.mk
 
-include ../vsn.mk
-VSN=$(ESWF_VSN)
-
-EBIN_FILES = $(ERL_OBJECTS) $(ERL_DOCUMENTS) ../ebin/egeoip.app
-MODULES = $(ERL_SOURCES:%.erl=%)
-
 all: $(EBIN_FILES)
+
+local: $(ERL_OBJECTS_LOCAL)
 
 debug:
 	$(MAKE) DEBUG=-DDEBUG
