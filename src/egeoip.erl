@@ -58,6 +58,7 @@
 -define(GEOIP_DIALUP_SPEED, 1).
 -define(GEOIP_CABLEDSL_SPEED, 2).
 -define(GEOIP_CORPORATE_SPEED, 3).
+-define(GEOIP_NUM_COUNTRIES, 250).
 -define(GEOIP_COUNTRY_CODES, {
 "AP", "EU", "AD", "AE", "AF", "AG", "AI", "AL", "AM", "AN", "AO", "AQ",
 "AR", "AS", "AT", "AU", "AW", "AZ", "BA", "BB", "BD", "BE", "BF", "BG", "BH",
@@ -77,7 +78,8 @@
 "SJ", "SK", "SL", "SM", "SN", "SO", "SR", "ST", "SV", "SY", "SZ", "TC", "TD",
 "TF", "TG", "TH", "TJ", "TK", "TM", "TN", "TO", "TP", "TR", "TT", "TV", "TW",
 "TZ", "UA", "UG", "UM", "US", "UY", "UZ", "VA", "VC", "VE", "VG", "VI", "VN",
-"VU", "WF", "WS", "YE", "YT", "CS", "ZA", "ZM", "ZR", "ZW", "A1", "A2", "O1"}).
+"VU", "WF", "WS", "YE", "YT", "CS", "ZA", "ZM", "ZR", "ZW", "A1", "A2", "O1",
+"AX", "GG", "IM", "JE"}).
 -define(GEOIP_COUNTRY_CODES3, {
 "AP","EU","AND","ARE","AFG","ATG","AIA","ALB","ARM","ANT","AGO","AQ","ARG",
 "ASM","AUT","AUS","ABW","AZE","BIH","BRB","BGD","BEL","BFA","BGR","BHR","BDI",
@@ -97,7 +99,8 @@
 "SVK","SLE","SMR","SEN","SOM","SUR","STP","SLV","SYR","SWZ","TCA","TCD","TF",
 "TGO","THA","TJK","TKL","TLS","TKM","TUN","TON","TUR","TTO","TUV","TWN","TZA",
 "UKR","UGA","UM","USA","URY","UZB","VAT","VCT","VEN","VGB","VIR","VNM","VUT",
-"WLF","WSM","YEM","YT","SCG","ZAF","ZMB","ZR","ZWE","A1","A2","O1"}).
+"WLF","WSM","YEM","YT","SCG","ZAF","ZMB","ZR","ZWE","A1","A2","O1","ALA","GGY",
+"IMN","JEY"}).
 -define(GEOIP_COUNTRY_NAMES, {
 "Asia/Pacific Region", "Europe", "Andorra", "United Arab Emirates",
 "Afghanistan", "Antigua and Barbuda", "Anguilla", "Albania", "Armenia",
@@ -160,7 +163,8 @@
 "Venezuela", "Virgin Islands, British", "Virgin Islands, U.S.",
 "Vietnam", "Vanuatu", "Wallis and Futuna", "Samoa", "Yemen", "Mayotte",
 "Serbia and Montenegro", "South Africa", "Zambia", "Zaire", "Zimbabwe",
-"Anonymous Proxy","Satellite Provider","Other"}).
+"Anonymous Proxy","Satellite Provider","Other", "Aland Islands", "Guernsey",
+"Isle of Man", "Jersey"}).
 
 -record(geoipdb, {type = ?GEOIP_COUNTRY_EDITION,
 		  record_length = ?STANDARD_RECORD_LENGTH,
@@ -303,13 +307,15 @@ new() ->
 %% @spec new(Path) -> {ok, geoipdb()}
 %% @doc Create a new geoipdb database record using the database at Path.
 new(city) ->
-    new(priv_path(["GeoLiteCity.dat.gz"]));
+    new(default_db(["GeoIPCity.dat", "GeoLiteCity.dat"]));
 new(Path) ->
     case filelib:is_file(Path) of
 	true ->
 	    Data = load_file(Path),
 	    Max = ?STRUCTURE_INFO_MAX_SIZE,
-	    read_structures(Path, Data, size(Data) - 3, Max);
+	    R = {ok, State} = read_structures(Path, Data, size(Data) - 3, Max),
+            ok = check_state(State),
+            R;
 	false ->
 	    io:format("GeoLite City Database not found: ~p.~n", [Path]),
 	    io:format(
@@ -329,13 +335,24 @@ lookup(D, Addr) when is_list(Addr) ->
 lookup(D, Addr) ->
     get_record(D, Addr).
 
+default_db([]) ->
+    not_found;
+default_db([Path | Rest]) ->
+    FullPath = priv_path([Path]),
+    case lists:filter(fun filelib:is_file/1, [FullPath ++ ".gz", FullPath]) of
+        [] ->
+            default_db(Rest);
+        [DbPath | _] ->
+            DbPath
+    end.    
+
 address_fast([N2, N1, N0, $. | Rest], Num, Shift) when Shift >= 8 ->
-    case ((N2 - $0) * 100) + ((N1 - $0) * 10) + (N0 - $0) of
+    case list_to_integer([N2, N1, N0]) of
 	N when N =< 255 ->
 	    address_fast(Rest, Num bor (N bsl Shift), Shift - 8)
     end;
 address_fast([N1, N0, $. | Rest], Num, Shift) when Shift >= 8 ->
-    case ((N1 - $0) * 10) + (N0 - $0) of
+    case list_to_integer([N1, N0]) of
 	N when N =< 255 ->
 	    address_fast(Rest, Num bor (N bsl Shift), Shift - 8)
     end;
@@ -344,13 +361,13 @@ address_fast([N0, $. | Rest], Num, Shift) when Shift >= 8 ->
 	N when N =< 255 ->
 	    address_fast(Rest, Num bor (N bsl Shift), Shift - 8)
     end;
-address_fast([N2, N1, N0], Num, 0) ->
-    case ((N2 - $0) * 100) + ((N1 - $0) * 10) + (N0 - $0) of
+address_fast(L=[_N2, _N1, _N0], Num, 0) ->
+    case list_to_integer(L) of
 	N when N =< 255 ->
 	    Num bor N
     end;
-address_fast([N1, N0], Num, 0) ->
-    case ((N1 - $0) * 10) + (N0 - $0) of
+address_fast(L=[_N1, _N0], Num, 0) ->
+    case list_to_integer(L) of
 	N when N =< 255 ->
 	    Num bor N
     end;
@@ -511,6 +528,11 @@ until_null(Binary, Start, Index) ->
 	    until_null(Binary, Start, 1 + Index)
     end.
     
+check_state(D) ->
+    true = (size(D#geoipdb.country_codes) =:= ?GEOIP_NUM_COUNTRIES),
+    true = (size(D#geoipdb.country_codes3) =:= ?GEOIP_NUM_COUNTRIES),
+    true = (size(D#geoipdb.country_names) =:= ?GEOIP_NUM_COUNTRIES),
+    ok.
 
 country_code(D, Number) ->
     try
@@ -597,10 +619,13 @@ test() ->
     #geoip{country_code = "US",
 	   country_code3 = "USA",
 	   country_name = "United States",
-	   region= <<"CA">>,
-           city= <<"San Francisco">>,
-           postal_code = <<"">>,
-           latitude = 3.776450e+01,
-	   longitude = -1.224294e+02,
-	   area_code = 415,
-	   dma_code = 807} = R.
+	   region = <<"CA">>,
+           _ = _} = R,
+    %% This is the test IP that MaxMind uses
+    {ok, R1} = egeoip:lookup("24.24.24.24"),
+    #geoip{country_code = "US",
+	   country_code3 = "USA",
+	   country_name = "United States",
+	   region = <<"NY">>,
+           _ = _} = R1,
+    ok.
