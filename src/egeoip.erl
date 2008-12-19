@@ -393,10 +393,7 @@ new(Path) ->
             ok = check_state(State),
             R;
     false ->
-        io:format("GeoLite City Database not found: ~p.~n", [Path]),
-        io:format(
-          "Download from: http://www.maxmind.com/app/geolitecity~n"),
-        {error, geoip_db_not_found}
+	    {error, {geoip_db_not_found,Path}}
     end.
 
 %% @spec lookup(D::geoipdb(), Addr) -> {ok, geoip()}
