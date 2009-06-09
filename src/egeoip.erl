@@ -12,9 +12,11 @@
 
 %% record access API
 -export([get/2]).
+-export([record_fields/0]).
 
 %% gen_server based API
--export([start/0, start/1, stop/0, lookup/1, reload/0, reload/1, filename/0]).
+-export([start/0, start/1, stop/0, lookup/1, lookup_pl/1,
+         reload/0, reload/1, filename/0]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, terminate/2, code_change/3,
@@ -23,6 +25,7 @@
 %% in-process API
 -export([new/1, new/0]).
 -export([lookup/2]).
+
 
 %% useful utility functions
 -export([ip2long/1]).
@@ -261,6 +264,23 @@ stop() ->
 %%      from the record using get/2.
 lookup(Address) ->
     gen_server:call(?MODULE, {lookup, Address}).
+
+%% @spec lookup_pl(Address) -> geoip()
+%% @doc Get a proplist version of a geoip() record for the given address.
+lookup_pl(Address) ->
+    case lookup(Address) of
+        {ok, #geoip{} = R} ->
+            E = record_info(fields, geoip),
+            lists:zip(E, lists:map(fun ensure_binary_list/1,
+                                   tl(tuple_to_list(R))));
+        Other ->
+            Other
+    end.
+
+%% @spec record_fields() -> Fields::list()
+%% @doc Get an ordered list of the geoip record fields
+record_fields() ->
+    record_info(fields, geoip).
 
 %% @spec filename() -> string()
 %% @doc Get the database filename currently being used by the server.
@@ -616,6 +636,11 @@ bench(Count) ->
     EndParse = now(),
     ok = stop(),
     {parse_100k_addr, pytime(EndParse) - pytime(StartParse)}.
+
+ensure_binary_list(L) when is_list(L) ->
+    list_to_binary(L);
+ensure_binary_list(Other) ->
+    Other.
 
 bench() ->
     bench(10000).
