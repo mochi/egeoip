@@ -8,8 +8,6 @@
 
 -behaviour(gen_server).
 
--compile(export_all).
-
 %% record access API
 -export([get/2]).
 -export([record_fields/0]).
@@ -20,7 +18,7 @@
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, terminate/2, code_change/3,
-	handle_info/2]).
+         handle_info/2]).
 
 %% in-process API
 -export([new/1, new/0]).
@@ -179,17 +177,17 @@
           "Isle of Man","Jersey", "Saint Barthelemy","Saint Martin"}).
 
 -record(geoipdb, {type = ?GEOIP_COUNTRY_EDITION,
-		  record_length = ?STANDARD_RECORD_LENGTH,
-		  segments = 0,
-		  data = nil,
-		  filename = nil,
-		  country_codes = ?GEOIP_COUNTRY_CODES,
-		  country_codes3 = ?GEOIP_COUNTRY_CODES3,
-		  country_names = ?GEOIP_COUNTRY_NAMES
-		 }).
+                  record_length = ?STANDARD_RECORD_LENGTH,
+                  segments = 0,
+                  data = nil,
+                  filename = nil,
+                  country_codes = ?GEOIP_COUNTRY_CODES,
+                  country_codes3 = ?GEOIP_COUNTRY_CODES3,
+                  country_names = ?GEOIP_COUNTRY_NAMES
+                 }).
 
 -record(geoip, {country_code, country_code3, country_name, region,
-		city, postal_code, latitude, longitude, area_code, dma_code}).
+                city, postal_code, latitude, longitude, area_code, dma_code}).
 
 %% geoip record API
 
@@ -237,10 +235,10 @@ reload() ->
 %%      state of the running server with the new database.
 reload(FileName) ->
     case new(FileName) of
-	{ok, NewState} ->
-	    gen_server:call(?MODULE, {reload, NewState});
-	Error ->
-	    Error
+        {ok, NewState} ->
+            gen_server:call(?MODULE, {reload, NewState});
+        Error ->
+            Error
     end.
 
 %% @spec start() -> {ok, Pid}
@@ -302,7 +300,7 @@ handle_call({lookup, Address}, _From, State) ->
 handle_call({reload, NewState}, _From, _State) ->
     {reply, ok, NewState};
 handle_call(filename, _From, State) ->
-    {reply, State#geoipdb.filename, State}. 
+    {reply, State#geoipdb.filename, State}.
 
 %% @spec handle_cast(Msg, State) -> term()
 %% @doc gen_server callback.
@@ -339,27 +337,27 @@ new(city) ->
     new(default_db(["GeoIPCity.dat", "GeoLiteCity.dat"]));
 new(Path) ->
     case filelib:is_file(Path) of
-	true ->
-	    Data = load_file(Path),
-	    Max = ?STRUCTURE_INFO_MAX_SIZE,
-	    R = {ok, State} = read_structures(Path, Data, size(Data) - 3, Max),
+    true ->
+        Data = load_file(Path),
+        Max = ?STRUCTURE_INFO_MAX_SIZE,
+        R = {ok, State} = read_structures(Path, Data, size(Data) - 3, Max),
             ok = check_state(State),
             R;
-	false ->
-	    io:format("GeoLite City Database not found: ~p.~n", [Path]),
-	    io:format(
-	      "Download from: http://www.maxmind.com/app/geolitecity~n"),
-	    {error, geoip_db_not_found}
+    false ->
+        io:format("GeoLite City Database not found: ~p.~n", [Path]),
+        io:format(
+          "Download from: http://www.maxmind.com/app/geolitecity~n"),
+        {error, geoip_db_not_found}
     end.
 
 %% @spec lookup(D::geoipdb(), Addr) -> {ok, geoip()}
 %% @doc Lookup a geoip record for Addr using the database D.
 lookup(D, Addr) when is_list(Addr) ->
     case ip2long(Addr) of
-	{ok, Ip} ->    
-	    lookup(D, Ip);
-	Error ->
-	    Error
+    {ok, Ip} ->
+        lookup(D, Ip);
+    Error ->
+        Error
     end;
 lookup(D, Addr) ->
     get_record(D, Addr).
@@ -373,39 +371,39 @@ default_db([Path | Rest]) ->
             default_db(Rest);
         [DbPath | _] ->
             DbPath
-    end.    
+    end.
 
 address_fast([N2, N1, N0, $. | Rest], Num, Shift) when Shift >= 8 ->
     case list_to_integer([N2, N1, N0]) of
-	N when N =< 255 ->
-	    address_fast(Rest, Num bor (N bsl Shift), Shift - 8)
+    N when N =< 255 ->
+        address_fast(Rest, Num bor (N bsl Shift), Shift - 8)
     end;
 address_fast([N1, N0, $. | Rest], Num, Shift) when Shift >= 8 ->
     case list_to_integer([N1, N0]) of
-	N when N =< 255 ->
-	    address_fast(Rest, Num bor (N bsl Shift), Shift - 8)
+    N when N =< 255 ->
+        address_fast(Rest, Num bor (N bsl Shift), Shift - 8)
     end;
 address_fast([N0, $. | Rest], Num, Shift) when Shift >= 8 ->
     case N0 - $0 of
-	N when N =< 255 ->
-	    address_fast(Rest, Num bor (N bsl Shift), Shift - 8)
+    N when N =< 255 ->
+        address_fast(Rest, Num bor (N bsl Shift), Shift - 8)
     end;
 address_fast(L=[_N2, _N1, _N0], Num, 0) ->
     case list_to_integer(L) of
-	N when N =< 255 ->
-	    Num bor N
+    N when N =< 255 ->
+        Num bor N
     end;
 address_fast(L=[_N1, _N0], Num, 0) ->
     case list_to_integer(L) of
-	N when N =< 255 ->
-	    Num bor N
+    N when N =< 255 ->
+        Num bor N
     end;
 address_fast([N0], Num, 0) ->
     case N0 - $0 of
-	N when N =< 255 ->
-	    Num bor N
+    N when N =< 255 ->
+        Num bor N
     end.
-	
+
 %% @spec ip2long(Address) -> {ok, integer()}
 %% @doc Convert an IP address from a string, IPv4 tuple or IPv6 tuple to the
 %%      big endian integer representation.
@@ -413,30 +411,30 @@ ip2long(Address) when is_integer(Address) ->
     {ok, Address};
 ip2long(Address) when is_list(Address) ->
     case catch address_fast(Address, 0, 24) of
-	N when is_integer(N) ->
-	    {ok, N};
-	_ ->
-	    case inet_parse:address(Address) of
-		{ok, Tuple} ->
-		    ip2long(Tuple);
-		Error ->
-		    Error
-	    end
+    N when is_integer(N) ->
+        {ok, N};
+    _ ->
+        case inet_parse:address(Address) of
+        {ok, Tuple} ->
+            ip2long(Tuple);
+        Error ->
+            Error
+        end
     end;
 ip2long({B3, B2, B1, B0}) ->
     {ok, (B3 bsl 24) bor (B2 bsl 16) bor (B1 bsl 8) bor B0};
 ip2long({W7, W6, W5, W4, W3, W2, W1, W0}) ->
     {ok, (W7 bsl 112) bor (W6 bsl 96) bor (W5 bsl 80) bor (W4 bsl 64) bor
-	(W3 bsl 48) bor (W2 bsl 32) bor (W1 bsl 16) bor W0};
+    (W3 bsl 48) bor (W2 bsl 32) bor (W1 bsl 16) bor W0};
 ip2long(_) ->
     {error, badmatch}.
 
 get_record(D, Ip) ->
     case seek_country(D, Ip) of
-	{ok, SeekCountry} ->
-	    get_record(D, Ip, SeekCountry);
-	Error ->
-	    Error
+    {ok, SeekCountry} ->
+        get_record(D, Ip, SeekCountry);
+    Error ->
+        Error
     end.
 
 
@@ -446,44 +444,44 @@ read_structures(_Path, _Data, _, 0) ->
 read_structures(Path, Data, Seek, N) ->
     <<_:Seek/binary, Delim:3/binary, _/binary>> = Data,
     case Delim of
-	<<255, 255, 255>> ->
-	    <<_:Seek/binary, _:3/binary, DbType, _/binary>> = Data,
-	    Type = case DbType >= 106 of 
-		       true ->
-			   DbType - 105;
-		       false ->
-			   DbType
-		   end,
-	    Segments = case Type of
-			   ?GEOIP_REGION_EDITION_REV0 ->
-			       ?GEOIP_STATE_BEGIN_REV0;
-			   ?GEOIP_REGION_EDITION_REV1 ->
-			       ?GEOIP_STATE_BEGIN_REV1;
-			   ?GEOIP_COUNTRY_EDITION ->
-			       ?GEOIP_COUNTRY_BEGIN;
-			   ?GEOIP_PROXY_EDITION ->
-			       ?GEOIP_COUNTRY_BEGIN;
-			   ?GEOIP_NETSPEED_EDITION ->
-			       ?GEOIP_COUNTRY_BEGIN;
-			   _ ->
-			       read_segments(Type, Data, Seek + 4)
-		       end,
-	    Length = case Type of
-			 ?GEOIP_ORG_EDITION ->
-			     ?ORG_RECORD_LENGTH;
-			 ?GEOIP_ISP_EDITION ->
-			     ?ORG_RECORD_LENGTH;
-			 _ ->
-			     ?STANDARD_RECORD_LENGTH
-		     end,
-	    Rec = #geoipdb{type = Type,
-			   segments = Segments,
-			   record_length = Length,
-			   data = Data,
-			   filename = Path},
-	    {ok, Rec};
-	_ ->
-	    read_structures(Path, Data, Seek - 1, N - 1)
+    <<255, 255, 255>> ->
+        <<_:Seek/binary, _:3/binary, DbType, _/binary>> = Data,
+        Type = case DbType >= 106 of
+               true ->
+               DbType - 105;
+               false ->
+               DbType
+           end,
+        Segments = case Type of
+               ?GEOIP_REGION_EDITION_REV0 ->
+                   ?GEOIP_STATE_BEGIN_REV0;
+               ?GEOIP_REGION_EDITION_REV1 ->
+                   ?GEOIP_STATE_BEGIN_REV1;
+               ?GEOIP_COUNTRY_EDITION ->
+                   ?GEOIP_COUNTRY_BEGIN;
+               ?GEOIP_PROXY_EDITION ->
+                   ?GEOIP_COUNTRY_BEGIN;
+               ?GEOIP_NETSPEED_EDITION ->
+                   ?GEOIP_COUNTRY_BEGIN;
+               _ ->
+                   read_segments(Type, Data, Seek + 4)
+               end,
+        Length = case Type of
+             ?GEOIP_ORG_EDITION ->
+                 ?ORG_RECORD_LENGTH;
+             ?GEOIP_ISP_EDITION ->
+                 ?ORG_RECORD_LENGTH;
+             _ ->
+                 ?STANDARD_RECORD_LENGTH
+             end,
+        Rec = #geoipdb{type = Type,
+               segments = Segments,
+               record_length = Length,
+               data = Data,
+               filename = Path},
+        {ok, Rec};
+    _ ->
+        read_structures(Path, Data, Seek - 1, N - 1)
     end.
 
 
@@ -505,23 +503,23 @@ get_record(D, _Ip, SeekCountry) ->
     Type = D#geoipdb.type,
     {DmaCode, AreaCode} = get_record_ex(Type, Country, Data, Seek3 + 6),
     Record = #geoip{country_code = Country,
-		    country_code3 = Country3,
-		    country_name = CountryName,
-		    region = Region,
-		    city = City,
-		    postal_code = Postal,
-		    latitude = Lat,
-		    longitude = Lon,
-		    dma_code = DmaCode,
-		    area_code = AreaCode},
+            country_code3 = Country3,
+            country_name = CountryName,
+            region = Region,
+            city = City,
+            postal_code = Postal,
+            latitude = Lat,
+            longitude = Lon,
+            dma_code = DmaCode,
+            area_code = AreaCode},
     {ok, Record}.
-				  
+
 get_record_ex(?GEOIP_CITY_EDITION_REV1, "US", Data, Seek) ->
     <<_:Seek/binary, Combo:24/little, _/binary>> = Data,
     {Combo div 1000, Combo rem 1000};
 get_record_ex(_, _, _, _) ->
     {0, 0}.
-    
+
 
 
 seek_country(D, Ip) ->
@@ -535,28 +533,28 @@ seek_country(D, Ip, Offset, Depth) ->
     Seek = 2 * RecordLength * Offset,
     <<_:Seek/binary, X0:RB/little, X1:RB/little, _/binary>> = D#geoipdb.data,
     X = case (Ip band (1 bsl Depth)) of
-	    0 -> X0;
-	    _ -> X1
-	end,
+        0 -> X0;
+        _ -> X1
+    end,
     case (X >= D#geoipdb.segments) of
-	true ->
-	    {ok, X};
-	false ->
-	    seek_country(D, Ip, X, Depth - 1)
+    true ->
+        {ok, X};
+    false ->
+        seek_country(D, Ip, X, Depth - 1)
     end.
-    
+
 until_null(Binary, Start, Index) ->
     Skip = Start + Index,
     <<_:Skip/binary, Byte, _/binary>> = Binary,
     case Byte of
-	0 ->
-	    Length = Skip - Start,
-	    <<_:Start/binary, Result:Length/binary, _/binary>> = Binary,
-	    {Result, 1 + Skip};
-	_ ->
-	    until_null(Binary, Start, 1 + Index)
+    0 ->
+        Length = Skip - Start,
+        <<_:Start/binary, Result:Length/binary, _/binary>> = Binary,
+        {Result, 1 + Skip};
+    _ ->
+        until_null(Binary, Start, 1 + Index)
     end.
-    
+
 check_state(D) ->
     true = (size(D#geoipdb.country_codes) =:= ?GEOIP_NUM_COUNTRIES),
     true = (size(D#geoipdb.country_codes3) =:= ?GEOIP_NUM_COUNTRIES),
@@ -565,49 +563,51 @@ check_state(D) ->
 
 country_code(D, Number) ->
     try
-	element(Number, D#geoipdb.country_codes)
+    element(Number, D#geoipdb.country_codes)
     catch
-	error:badarg -> ""
+    error:badarg -> ""
     end.
 
 country_code3(D, Number) ->
     try
-	element(Number, D#geoipdb.country_codes3)
+    element(Number, D#geoipdb.country_codes3)
     catch
-	error:badarg -> ""
+    error:badarg -> ""
     end.
 
 country_name(D, Number) ->
     try
-	element(Number, D#geoipdb.country_names)
+    element(Number, D#geoipdb.country_names)
     catch
-	error:badarg -> ""
+    error:badarg -> ""
     end.
-        
+
 read_segments(Type, Data, Seek) when Type == ?GEOIP_CITY_EDITION_REV0;
-				     Type == ?GEOIP_CITY_EDITION_REV1;
-				     Type == ?GEOIP_ORG_EDITION;
-				     Type == ?GEOIP_ISP_EDITION;
-				     Type == ?GEOIP_ASNUM_EDITION ->
+                     Type == ?GEOIP_CITY_EDITION_REV1;
+                     Type == ?GEOIP_ORG_EDITION;
+                     Type == ?GEOIP_ISP_EDITION;
+                     Type == ?GEOIP_ASNUM_EDITION ->
     Bits = ?SEGMENT_RECORD_LENGTH * 8,
     <<_:Seek/binary, Segments:Bits/little, _/binary>> = Data,
     Segments.
 
 
 priv_path(Components) ->
-    {file, Here} = code:is_loaded(?MODULE),
-    AppDir = filename:dirname(filename:dirname(Here)),
+    AppDir = case code:which(?MODULE) of
+                 cover_compiled -> "..";
+                 F -> filename:dirname(filename:dirname(F))
+             end,
     filename:join([AppDir, "priv" | Components]).
 
 load_file(Path) ->
     case file:read_file(Path) of
-	{ok, Raw} ->
-	    case filename:extension(Path) of
-		".gz" ->
-		    zlib:gunzip(Raw);
-		_ ->
-		    Raw
-	    end
+    {ok, Raw} ->
+        case filename:extension(Path) of
+        ".gz" ->
+            zlib:gunzip(Raw);
+        _ ->
+            Raw
+        end
     end.
 
 benchcall(Fun, 1) ->
@@ -621,15 +621,15 @@ pytime({MegaSecs, Secs, MicroSecs}) ->
 
 bench(Count) ->
     SampleIPs = ["63.224.214.117",
-		 "144.139.80.91",
-		 "88.233.53.82",
-		 "85.250.32.5",
-		 "220.189.211.182",
-		 "211.112.118.99",
-		 "84.94.205.244",
-		 "61.16.226.206",
-		 "64.180.1.78",
-		 "138.217.4.11"],
+         "144.139.80.91",
+         "88.233.53.82",
+         "85.250.32.5",
+         "220.189.211.182",
+         "211.112.118.99",
+         "84.94.205.244",
+         "61.16.226.206",
+         "64.180.1.78",
+         "138.217.4.11"],
     {ok, _} = start(),
     StartParse = now(),
     benchcall(fun () -> [lookup(X) || X <- SampleIPs] end, Count),
@@ -645,21 +645,35 @@ ensure_binary_list(Other) ->
 bench() ->
     bench(10000).
 
-test() ->
+%%
+%% Tests
+%%
+-include_lib("eunit/include/eunit.hrl").
+-ifdef(TEST).
+
+egeoip_bench_test() ->
+    ?assertMatch(
+       {_, _},
+       bench(1)),
+    ok.
+
+egeoip_test() ->
     {ok, IpAddressLong} = ip2long({207,145,216,106}),
     {ok, IpAddressLong} = ip2long("207.145.216.106"),
     egeoip:start(),
     {ok, R} = egeoip:lookup(IpAddressLong),
     #geoip{country_code = "US",
-	   country_code3 = "USA",
-	   country_name = "United States",
-	   region = <<"CA">>,
+           country_code3 = "USA",
+           country_name = "United States",
+           region = <<"CA">>,
            _ = _} = R,
     %% This is the test IP that MaxMind uses
     {ok, R1} = egeoip:lookup("24.24.24.24"),
     #geoip{country_code = "US",
-	   country_code3 = "USA",
-	   country_name = "United States",
-	   region = <<"NY">>,
+           country_code3 = "USA",
+           country_name = "United States",
+           region = <<"NY">>,
            _ = _} = R1,
     ok.
+
+-endif.
