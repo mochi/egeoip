@@ -31,3 +31,6 @@ clean_plt:
 
 dialyzer: $(TEST_PLT)
 	dialyzer --src --plt $(TEST_PLT) -DNOTEST -DDIALYZER -c ../src | tee $(TEST_DIR)/dialyzer.log
+
+egeoip_tz.erl: timezone.txt ../support/make_tz.py
+	../support/make_tz.py < timezone.txt > egeoip_tz.erl
