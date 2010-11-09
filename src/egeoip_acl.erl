@@ -5,8 +5,11 @@
 ]).
 
 %% @type ip24() = list() | binary() | {int(), int(), int()}
+%% @type ip32() = list() | binary() | {int(), int(), int(), int()}
+%% @type ip() = ip24() | ip32() | invalid_ip
+%% @type acldb() = {binary(), binary(), tuple()}
 
-%% @spec parse_file(string() | atom()) -> {binary(), binary(), tuple()}
+%% @spec parse_file(string() | atom()) -> acldb()
 %% @doc Parses an ACL file and converts it to an IP -> Zone index.
 %%
 %%  IPs DATABASE FORMAT
@@ -16,7 +19,7 @@
 %%  1. IPsBlob consists of buckets, each bucket is associated with some
 %%     16-bit IP (M.N.*.*) and contains IP ranges associated with a zone hash:
 %%
-%% <<StartIP_1:8, EndIP_1:8, Zone_1:16, StartIP_2:8, EndIP_2:8, Zone_2:16, ...>>
+%%  StartIP_1:8, EndIP_1:8, Zone_1:16, StartIP_2:8, EndIP_2:8, Zone_2:16, ...
 %%
 %%      Thus, every IP range uses 4 bytes: 2 bytes for start and end of
 %%      the range and 2 bytes for zone hash.
@@ -24,7 +27,7 @@
 %%  2. IPsIndex has 65536 parts associated with all possible 16-bit IPs
 %%     (from 0.0.*.* to 255.255.*.*). Every part has 4 bytes:
 %%
-%%  <<BucketStart:16, BucketSize:16>>
+%%  BucketStart:16, BucketSize:16
 %%
 %%      BucketStart represents the offset of the bucket from PIsBlob associated
 %%      with the target 16-bit IP, and BucketSize represents its size, in bytes.
@@ -40,21 +43,11 @@ parse_file(Filename) ->
     {IPsBlob, IPsIndex} = ips_index(IPZoneKV),
     {IPsBlob, IPsIndex, Zones}.
 
-%% @spec lookup(ip24()) -> binary() | notfound
-%% @doc Searches for 24-bit IP in the database generated from ACL file. Returns
-%%      a binary name of the zone or notfound if there's no zone associated with
-%%      the IP.
-%%
-%%      Possible IP formats:
-%%          {127,0,0}
-%%          <<"127.0.0">>
-%%          "127.0.0"
-%%          <<127,0,0>>
-%%
-lookup(IP, Database) when is_list(IP) ->
-    lookup(parse_ip(list_to_binary(IP)), Database);
-lookup({A, B, C}, Database) ->
-    lookup(<<A:8, B:8, C:8>>, Database);
+%% @spec lookup(ip(), acldb()) -> binary() | notfound | invalid_ip
+%% @doc Searches for 24-bit or 32-bit IP in the database generated from ACL 
+%%      file. Returns a binary name of the zone or 'notfound' if there's no
+%%      zone associated with the IP.
+lookup(invalid_ip, _) -> invalid_ip;
 lookup(<<Prefix:16/integer, C:8>>, {IPsBlob, IPsIndex, Zones}) ->
     IndexOffset = Prefix * 4,
     <<_:(IndexOffset)/binary, BucketOffset:16/integer, BucketSize:16/integer, _/binary>> = IPsIndex,
@@ -65,8 +58,24 @@ lookup(<<Prefix:16/integer, C:8>>, {IPsBlob, IPsIndex, Zones}) ->
         _ ->
             notfound
     end;
-lookup(IP, Database) when is_binary(IP) ->
+lookup(IP, Database) ->
     lookup(parse_ip(IP), Database).
+
+parse_ip({A, B, C}) -> <<A:8, B:8, C:8>>;
+parse_ip({A, B, C, _}) -> <<A:8, B:8, C:8>>;
+parse_ip(<<A:8, B:8, C:8, _D:8>>) -> <<A:8, B:8, C:8>>;
+parse_ip(IP) when is_binary(IP) ->
+    parse_ip(binary_to_list(IP));
+parse_ip(IP) when is_list(IP) ->
+    case lists:map(
+            fun list_to_integer/1,
+            string:tokens(IP, ".")
+            ) of
+        [A, B, C] -> <<A:8, B:8, C:8>>;
+        [A, B, C, _] -> <<A:8, B:8, C:8>>;
+        _ -> invalid_ip
+    end;
+parse_ip(_) -> invalid_ip.
 
 lookup_ip(C, <<Start:8, End:8, ZNum:16/integer, _/binary>>)
                                                 when C >= Start, C =< End ->
@@ -115,21 +124,21 @@ split_ips(<<>>, Acc) -> Acc;
 split_ips(<<"\n", Rest/binary>>, Acc) ->
     split_ips(Rest, Acc);
 split_ips(<<IP:5/binary, ".0/24;", Rest/binary>>, Acc) ->
-    split_ips(Rest, [parse_ip(IP) | Acc]);
+    split_ips(Rest, [parse_ip24(IP) | Acc]);
 split_ips(<<IP:6/binary, ".0/24;", Rest/binary>>, Acc) ->
-    split_ips(Rest, [parse_ip(IP) | Acc]);
+    split_ips(Rest, [parse_ip24(IP) | Acc]);
 split_ips(<<IP:7/binary, ".0/24;", Rest/binary>>, Acc) ->
-    split_ips(Rest, [parse_ip(IP) | Acc]);
+    split_ips(Rest, [parse_ip24(IP) | Acc]);
 split_ips(<<IP:8/binary, ".0/24;", Rest/binary>>, Acc) ->
-    split_ips(Rest, [parse_ip(IP) | Acc]);
+    split_ips(Rest, [parse_ip24(IP) | Acc]);
 split_ips(<<IP:9/binary, ".0/24;", Rest/binary>>, Acc) ->
-    split_ips(Rest, [parse_ip(IP) | Acc]);
+    split_ips(Rest, [parse_ip24(IP) | Acc]);
 split_ips(<<IP:10/binary, ".0/24;", Rest/binary>>, Acc) ->
-    split_ips(Rest, [parse_ip(IP) | Acc]);
+    split_ips(Rest, [parse_ip24(IP) | Acc]);
 split_ips(<<IP:11/binary, ".0/24;", Rest/binary>>, Acc) ->
-    split_ips(Rest, [parse_ip(IP) | Acc]).
+    split_ips(Rest, [parse_ip24(IP) | Acc]).
 
-parse_ip(IP) ->
+parse_ip24(IP) ->
     [A, B, C] = lists:map(
             fun list_to_integer/1,
             string:tokens(binary_to_list(IP), ".")
@@ -192,7 +201,7 @@ merge_ip_groups([<<Addr:16/integer,Ranges/binary>> | Groups], IPsBlob, IPsIndex)
 -ifdef(TEST).
 
 ip_parse_test() ->
-    [IP = parse_ip(BinIP) || {IP, BinIP} <- test_ips()],
+    [IP = parse_ip24(BinIP) || {IP, BinIP} <- test_ips()],
     ok.
 
 test_ips() ->
