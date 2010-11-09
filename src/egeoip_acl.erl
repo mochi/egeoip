@@ -50,8 +50,13 @@ parse_file(Filename) ->
 lookup(invalid_ip, _) -> invalid_ip;
 lookup(<<Prefix:16/integer, C:8>>, {IPsBlob, IPsIndex, Zones}) ->
     IndexOffset = Prefix * 4,
-    <<_:(IndexOffset)/binary, BucketOffset:16/integer, BucketSize:16/integer, _/binary>> = IPsIndex,
-    <<_:(BucketOffset)/binary, Ranges:(BucketSize)/binary, _/binary>> = IPsBlob,
+    << _:(IndexOffset)/binary,
+        BucketOffset:16/integer,
+        BucketSize:16/integer,
+        _/binary >> = IPsIndex,
+    << _:(BucketOffset)/binary,
+        Ranges:(BucketSize)/binary,
+        _/binary >> = IPsBlob,
     case lookup_ip(C, Ranges) of
         V when is_integer(V) ->
             element(V, Zones);
@@ -77,13 +82,26 @@ parse_ip(IP) when is_list(IP) ->
     end;
 parse_ip(_) -> invalid_ip.
 
-lookup_ip(C, <<Start:8, End:8, ZNum:16/integer, _/binary>>)
-                                                when C >= Start, C =< End ->
-    ZNum;
-lookup_ip(C, <<_:4/binary, Rest/binary>>) ->
-    lookup_ip(C, Rest);
-lookup_ip(_, <<>>) ->
-    notfound.
+lookup_ip(_, <<>>) -> notfound;
+lookup_ip(C, Bin) ->
+    Size = byte_size(Bin) div 4,
+    Left = Size div 2,
+    Right = case Size rem 2 of
+        0 -> Left - 1;
+        1 -> Left
+    end,
+    << Prefix:Left/binary-unit:32,
+        Start:8, End:8, ZNum:16/integer,
+        Suffix:Right/binary-unit:32 >> = Bin,
+    case C of
+        C when C < Start ->
+            lookup_ip(C, Prefix);
+        C when C > End ->
+            lookup_ip(C, Suffix);
+        C when C >= Start, C =< End -> 
+            ZNum;
+        C -> notfound
+    end.
 
 read_file(Filename) ->
     {ok, File} = file:open(Filename, [binary, read]),
@@ -192,7 +210,11 @@ merge_ip_groups([<<Addr:16/integer,Ranges/binary>> | Groups], IPsBlob, IPsIndex)
     L = Addr * 4,
     <<Prefix:L/binary, 0:32/integer, Suffix/binary>> = IPsIndex,
     merge_ip_groups(Groups, <<IPsBlob/binary, Ranges/binary>>,
-                <<Prefix/binary, (byte_size(IPsBlob)):16/integer, (byte_size(Ranges)):16/integer, Suffix/binary>>).
+                << Prefix/binary,
+                    (byte_size(IPsBlob)):16/integer,
+                    (byte_size(Ranges)):16/integer,
+                    Suffix/binary >>
+    ).
 
 %%
 %% Tests
