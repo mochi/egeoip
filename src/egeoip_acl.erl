@@ -86,10 +86,7 @@ lookup_ip(_, <<>>) -> notfound;
 lookup_ip(C, Bin) ->
     Size = byte_size(Bin) div 4,
     Left = Size div 2,
-    Right = case Size rem 2 of
-        0 -> Left - 1;
-        1 -> Left
-    end,
+    Right = Size - Left - 1,
     << Prefix:Left/binary-unit:32,
         Start:8, End:8, ZNum:16/integer,
         Suffix:Right/binary-unit:32 >> = Bin,
