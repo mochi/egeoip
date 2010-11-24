@@ -350,7 +350,9 @@ handle_info(Info, State) ->
 upgrade({geoipdb, Type, RecordLength, Segments, Data, FileName,
          CountryCodes, CountryCodes3, CountryNames}) ->
     unregister(egeoip),
-    Specs = egeoip_sup:worker(tuple_to_list(egeoip_sup:worker_names()), FileName),
+    [Name | Workers] = tuple_to_list(egeoip_sup:worker_names()),
+    register(Name, self()),
+    Specs = egeoip_sup:worker(Workers, FileName),
     lists:map(fun(Spec) ->
                       {ok, Pid} = supervisor:start_child(egeoip_sup, Spec),
                       Pid
