@@ -269,7 +269,7 @@ start_link(Name, FileName) ->
 %% @spec stop() -> ok
 %% @doc Stop the server.
 stop() ->
-    gen_server:cast(?MODULE, stop).
+    application:stop(egeoip).
 
 %% @spec lookup(Address) -> geoip()
 %% @doc Get a geoip() record for the given address. Fields can be obtained
