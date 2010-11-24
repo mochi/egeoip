@@ -21,7 +21,7 @@ init([]) ->
 		   city
 	   end,
     Processes = worker(tuple_to_list(worker_names()), File),
-    {ok, {{one_for_one, 0, 300}, Processes}}.
+    {ok, {{one_for_one, 5, 300}, Processes}}.
 
 worker_names() ->
     {egeoip_0,
