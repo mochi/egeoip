@@ -31,6 +31,7 @@
 %% little benchmark function
 -export([bench/0, bench/1]).
 
+-define(GEOIP_STATE_VERSION, 1).
 -define(GEOIP_COUNTRY_BEGIN, 16776960).
 -define(GEOIP_STATE_BEGIN_REV0, 16700000).
 -define(GEOIP_STATE_BEGIN_REV1, 16000000).
@@ -176,7 +177,9 @@
           "Satellite Provider","Other","Aland Islands","Guernsey",
           "Isle of Man","Jersey", "Saint Barthelemy","Saint Martin"}).
 
--record(geoipdb, {type = ?GEOIP_COUNTRY_EDITION,
+
+-record(geoipdb, {version = ?GEOIP_STATE_VERSION,
+                  type = ?GEOIP_COUNTRY_EDITION,
                   record_length = ?STANDARD_RECORD_LENGTH,
                   segments = 0,
                   data = nil,
@@ -310,6 +313,9 @@ init(FileName) ->
 
 %% @spec handle_call(Msg, From, State) -> term()
 %% @doc gen_server callback.
+handle_call(Req, From, State) when tuple_size(State) =:= 9 ->
+    NewState = upgrade(State),
+    handle_call(Req, From, NewState);
 handle_call({lookup, Address}, _From, State) ->
     Res = lookup(State, Address),
     {reply, Res, State};
@@ -340,6 +346,23 @@ handle_info(Info, State) ->
     {noreply, State}.
 
 %% Implementation
+
+upgrade({geoipdb, Type, RecordLength, Segments, Data, FileName,
+         CountryCodes, CountryCodes3, CountryNames}) ->
+    unregister(egeoip),
+    Specs = egeoip_sup:worker(tuple_to_list(egeoip_sup:worker_names()), FileName),
+    lists:map(fun(Spec) ->
+                      {ok, Pid} = supervisor:start_child(egeoip_sup, Spec),
+                      Pid
+              end, Specs),
+    #geoipdb{type = Type,
+             record_length = RecordLength,
+             segments = Segments,
+             data = Data,
+             filename = FileName,
+             country_codes = CountryCodes,
+             country_codes3 = CountryCodes3,
+             country_names = CountryNames}.
 
 get_worker(Address) ->
     element(1 + erlang:phash2(Address) band 7,

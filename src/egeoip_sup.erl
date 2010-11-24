@@ -8,7 +8,7 @@
 
 -export([start_link/0]).
 -export([init/1]).
--export([worker_names/0]).
+-export([worker/2, worker_names/0]).
 
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
