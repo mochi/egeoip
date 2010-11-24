@@ -13,7 +13,7 @@
 -export([record_fields/0]).
 
 %% gen_server based API
--export([start/0, start/1, stop/0, lookup/1, lookup_pl/1,
+-export([start_link/1, start_link/2, stop/0, lookup/1, lookup_pl/1,
          reload/0, reload/1, filename/0]).
 
 %% gen_server callbacks
@@ -243,14 +243,14 @@ reload(FileName) ->
 
 %% @spec start() -> {ok, Pid}
 %% @doc Start the server using the default priv/GeoLitecity.dat.gz database.
-start() ->
-    start(city).
+start_link(Name) ->
+    start_link(Name, city).
 
-%% @spec start(Path) -> {ok, Pid}
+%% @spec start(Name, Path) -> {ok, Pid}
 %% @doc Start the server using the database at Path.
-start(FileName) ->
+start_link(Name, FileName) ->
     gen_server:start_link(
-      {local, ?MODULE}, ?MODULE, FileName, []).
+      {local, Name}, ?MODULE, FileName, []).
 
 %% @spec stop() -> ok
 %% @doc Stop the server.
@@ -261,7 +261,8 @@ stop() ->
 %% @doc Get a geoip() record for the given address. Fields can be obtained
 %%      from the record using get/2.
 lookup(Address) ->
-    gen_server:call(?MODULE, {lookup, Address}).
+    Worker = get_worker(Address),
+    gen_server:call(Worker, {lookup, Address}).
 
 %% @spec lookup_pl(Address) -> geoip()
 %% @doc Get a proplist version of a geoip() record for the given address.
@@ -325,6 +326,10 @@ handle_info(Info, State) ->
 
 %% Implementation
 
+get_worker(Address) ->
+    element(1 + erlang:phash2(Address) band 7,
+            egeoip_sup:worker_names()).
+    
 %% @spec new() -> {ok, geoipdb()}
 %% @doc Create a new geoipdb database record using the default
 %%      priv/GeoLiteCity.dat.gz database.
@@ -630,7 +635,7 @@ bench(Count) ->
          "61.16.226.206",
          "64.180.1.78",
          "138.217.4.11"],
-    {ok, _} = start(),
+    {ok, _} = start_link(egeoip_0),
     StartParse = now(),
     benchcall(fun () -> [lookup(X) || X <- SampleIPs] end, Count),
     EndParse = now(),
