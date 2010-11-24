@@ -282,11 +282,11 @@ lookup(Address) ->
             Worker = get_worker(Address),
             gen_server:call(Worker, {lookup, Address});
         Pid ->
-            FileName = gen_server:call(egeoip, filename),
-            [Name | Workers] = tuple_to_list(egeoip_sup:worker_names()),
-            Specs = egeoip_sup:worker(Workers, FileName),
             unregister(egeoip),
-            register(Name, Pid),
+            register(egeoip_0, Pid),
+            FileName = gen_server:call(Pid, filename),
+            [egeoip_0 | Workers] = tuple_to_list(egeoip_sup:worker_names()),
+            Specs = egeoip_sup:worker(Workers, FileName),
             lists:map(fun(Spec) ->
                               {ok, _Pid} = supervisor:start_child(egeoip_sup, Spec)
                       end, Specs),
