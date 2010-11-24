@@ -13,8 +13,8 @@
 -export([record_fields/0]).
 
 %% gen_server based API
--export([start_link/1, start_link/2, stop/0, lookup/1, lookup_pl/1,
-         reload/0, reload/1, filename/0]).
+-export([start/0, start/1, start_link/1, start_link/2, stop/0,
+         lookup/1, lookup_pl/1, reload/0, reload/1, filename/0]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, terminate/2, code_change/3,
@@ -241,13 +241,27 @@ reload(FileName) ->
             Error
     end.
 
-%% @spec start() -> {ok, Pid}
+%% @spec start() -> ok
+%% @doc Start the egeoip application with the default database.
+start() ->
+    application:start(egeoip).
+
+%% @spec start(File) -> ok
+%% @doc Start the egeoip application with the File as database.
+start(File) ->
+    application:load(egeoip),
+    application:set_env(egeoip, dbfile, File),
+    start().
+    
+    
+%% @spec start_link(Name) -> {ok, Pid}
 %% @doc Start the server using the default priv/GeoLitecity.dat.gz database.
+%%      The process will be registered as Name
 start_link(Name) ->
     start_link(Name, city).
 
-%% @spec start(Name, Path) -> {ok, Pid}
-%% @doc Start the server using the database at Path.
+%% @spec start_link(Name, Path) -> {ok, Pid}
+%% @doc Start the server using the database at Path registered as Name.
 start_link(Name, FileName) ->
     gen_server:start_link(
       {local, Name}, ?MODULE, FileName, []).
