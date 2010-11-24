@@ -236,7 +236,8 @@ reload() ->
 reload(FileName) ->
     case new(FileName) of
         {ok, NewState} ->
-            gen_server:call(?MODULE, {reload, NewState});
+            Workers = egeoip_sup:worker_names(),
+            [gen_server:call(W, {reload, NewState})  || W <- tuple_to_list(Workers)];
         Error ->
             Error
     end.
@@ -252,8 +253,8 @@ start(File) ->
     application:load(egeoip),
     application:set_env(egeoip, dbfile, File),
     start().
-    
-    
+
+
 %% @spec start_link(Name) -> {ok, Pid}
 %% @doc Start the server using the default priv/GeoLitecity.dat.gz database.
 %%      The process will be registered as Name
@@ -298,7 +299,7 @@ record_fields() ->
 %% @spec filename() -> string()
 %% @doc Get the database filename currently being used by the server.
 filename() ->
-    gen_server:call(?MODULE, filename).
+    gen_server:call(element(1, egeoip_sup:worker_names()), filename).
 
 %% gen_server callbacks
 
