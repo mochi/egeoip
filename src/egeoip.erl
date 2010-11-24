@@ -282,7 +282,7 @@ lookup(Address) ->
             Worker = get_worker(Address),
             gen_server:call(Worker, {lookup, Address});
         Pid ->
-            FileName = filename(),
+            FileName = gen_server:call(egeoip, filename),
             [Name | Workers] = tuple_to_list(egeoip_sup:worker_names()),
             Specs = egeoip_sup:worker(Workers, FileName),
             unregister(egeoip),
