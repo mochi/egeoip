@@ -710,4 +710,24 @@ egeoip_test() ->
            _ = _} = R1,
     ok = stop().
 
+non_parallel_test() ->
+    %% recreate the non-parallelized version of egeoip and then verify
+    %% that the upgrade works.
+    ok = start(),
+    Workers = [Egeoip | T] = tuple_to_list(egeoip_sup:worker_names()),
+    %% Remove all worker processes except for the first one
+    lists:map(fun(Worker) ->
+                      ok = supervisor:terminate_child(egeoip_sup, Worker),
+                      ok = supervisor:delete_child(egeoip_sup, Worker)
+              end, T),
+    Pid = whereis(Egeoip),
+    unregister(Egeoip),
+    register(egeoip, Pid),
+    ?assert(Pid == whereis(egeoip)),
+    [?assert(undefined == whereis(W)) || W <- Workers],
+    %% Should upgrade when calling lookup
+    {ok, _R} = egeoip:lookup("24.24.24.24"),
+    ?assert(undefined == whereis(egeoip)),
+    [?assertNot(undefined == whereis(W)) || W <- Workers].
+
 -endif.
