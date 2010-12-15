@@ -731,4 +731,10 @@ non_parallel_test() ->
     [?assertNot(undefined == whereis(W)) || W <- Workers],
     ok = stop().
 
+no_egeoip_test() ->
+    egeoip:start(),
+    Lookup = {lookup, "24.24.24.24"},
+    ?assertExit({noproc,{gen_server,call,[egeoip,Lookup]}},gen_server:call(egeoip, Lookup)),
+    egeoip:stop().
+
 -endif.
