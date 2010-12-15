@@ -728,6 +728,7 @@ non_parallel_test() ->
     %% Should upgrade when calling lookup
     {ok, _R} = egeoip:lookup("24.24.24.24"),
     ?assert(undefined == whereis(egeoip)),
-    [?assertNot(undefined == whereis(W)) || W <- Workers].
+    [?assertNot(undefined == whereis(W)) || W <- Workers],
+    ok = stop().
 
 -endif.
