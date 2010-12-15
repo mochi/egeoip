@@ -664,7 +664,7 @@ bench(Count) ->
          "61.16.226.206",
          "64.180.1.78",
          "138.217.4.11"],
-    {ok, _} = start_link(egeoip_0),
+    ok = start(),
     StartParse = now(),
     benchcall(fun () -> [lookup(X) || X <- SampleIPs] end, Count),
     EndParse = now(),
@@ -692,9 +692,9 @@ egeoip_bench_test() ->
     ok.
 
 egeoip_test() ->
+    ok = start(),
     {ok, IpAddressLong} = ip2long({207,145,216,106}),
     {ok, IpAddressLong} = ip2long("207.145.216.106"),
-    egeoip:start(),
     {ok, R} = egeoip:lookup(IpAddressLong),
     #geoip{country_code = "US",
            country_code3 = "USA",
@@ -708,6 +708,6 @@ egeoip_test() ->
            country_name = "United States",
            region = <<"NY">>,
            _ = _} = R1,
-    ok.
+    ok = stop().
 
 -endif.
