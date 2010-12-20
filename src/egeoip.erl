@@ -664,11 +664,9 @@ bench(Count) ->
          "61.16.226.206",
          "64.180.1.78",
          "138.217.4.11"],
-    ok = start(),
     StartParse = now(),
     benchcall(fun () -> [lookup(X) || X <- SampleIPs] end, Count),
     EndParse = now(),
-    ok = stop(),
     {parse_100k_addr, pytime(EndParse) - pytime(StartParse)}.
 
 ensure_binary_list(L) when is_list(L) ->
@@ -685,14 +683,24 @@ bench() ->
 -include_lib("eunit/include/eunit.hrl").
 -ifdef(TEST).
 
-egeoip_bench_test() ->
+run_test_() ->
+    {inorder,
+     {foreach,
+      fun start/0,
+      fun(_) -> stop() end,
+      [fun egeoip_bench/0,
+       fun egeoip/0,
+       fun non_parallel/0
+      ]
+     }}.
+
+egeoip_bench() ->
     ?assertMatch(
        {_, _},
        bench(1)),
     ok.
 
-egeoip_test() ->
-    ok = start(),
+egeoip() ->
     {ok, IpAddressLong} = ip2long({207,145,216,106}),
     {ok, IpAddressLong} = ip2long("207.145.216.106"),
     {ok, R} = egeoip:lookup(IpAddressLong),
@@ -707,13 +715,11 @@ egeoip_test() ->
            country_code3 = "USA",
            country_name = "United States",
            region = <<"NY">>,
-           _ = _} = R1,
-    ok = stop().
+           _ = _} = R1.
 
-non_parallel_test() ->
+non_parallel() ->
     %% recreate the non-parallelized version of egeoip and then verify
     %% that the upgrade works.
-    ok = start(),
     Workers = [Egeoip | T] = tuple_to_list(egeoip_sup:worker_names()),
     %% Remove all worker processes except for the first one
     lists:map(fun(Worker) ->
@@ -728,13 +734,10 @@ non_parallel_test() ->
     %% Should upgrade when calling lookup
     {ok, _R} = egeoip:lookup("24.24.24.24"),
     ?assert(undefined == whereis(egeoip)),
-    [?assertNot(undefined == whereis(W)) || W <- Workers],
-    ok = stop().
+    [?assertNot(undefined == whereis(W)) || W <- Workers].
 
 no_egeoip_test() ->
-    egeoip:start(),
     Lookup = {lookup, "24.24.24.24"},
-    ?assertExit({noproc,{gen_server,call,[egeoip,Lookup]}},gen_server:call(egeoip, Lookup)),
-    egeoip:stop().
+    ?assertExit({noproc,{gen_server,call,[egeoip,Lookup]}},gen_server:call(egeoip, Lookup)).
 
 -endif.
