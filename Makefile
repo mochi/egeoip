@@ -1,20 +1,27 @@
-all: ebin/
-	(cd src;$(MAKE) all)
+REBAR ?= /usr/bin/rebar
+REBAR_FLAGS ?=
 
-edoc:
-	(cd src;$(MAKE) edoc)
+all:
+	$(REBAR) compile $(REBAR_FLAGS)
 
-test: ebin/
-	(cd src;$(MAKE) test)
+doc:
+	$(REBAR) doc $(REBAR_FLAGS)
+
+test:
+	$(REBAR) eunit $(REBAR_FLAGS)
 
 clean:
-	(cd src;$(MAKE) clean)
+	$(REBAR) clean $(REBAR_FLAGS)
 
 clean_plt:
-	(cd src;$(MAKE) clean_plt)
+	@rm -f _test/dialyzer_plt
+
+build_plt: build-plt
+
+build-plt:
+	@ [ -d _test ] || mkdir _test
+	$(REBAR) build-plt $(REBAR_FLAGS)
 
 dialyzer:
-	(cd src;$(MAKE) dialyzer)
+	$(REBAR) dialyze $(REBAR_FLAGS)
 
-ebin/:
-	@mkdir -p ebin
