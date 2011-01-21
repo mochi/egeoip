@@ -1,1 +1,3 @@
 egeoip is a pure Erlang library for dealing with MaxMind Geolocation databases.
+
+This product includes GeoLite data created by MaxMind, available from http://www.maxmind.com/.

@@ -8,6 +8,7 @@
 
 -export([start_link/0]).
 -export([init/1]).
+-export([worker/2, worker_names/0]).
 
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
@@ -19,7 +20,22 @@ init([]) ->
 	       _ ->
 		   city
 	   end,
-    Process = {egeoip,
-	       {egeoip, start, [File]}, permanent, 5000, worker, [egeoip]},
-    {ok, {{one_for_one, 0, 300}, [Process]}}.	   
-    
+    Processes = worker(tuple_to_list(worker_names()), File),
+    {ok, {{one_for_one, 5, 300}, Processes}}.
+
+worker_names() ->
+    {egeoip_0,
+     egeoip_1,
+     egeoip_2,
+     egeoip_3,
+     egeoip_4,
+     egeoip_5,
+     egeoip_6,
+     egeoip_7}.
+
+worker([], _File) ->
+    [];
+worker([Name | T], File) ->
+    [{Name,
+     {egeoip, start_link, [Name, File]},
+     permanent, 5000, worker, [egeoip]} | worker(T, File)].

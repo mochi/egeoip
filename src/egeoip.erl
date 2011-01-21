@@ -13,8 +13,8 @@
 -export([record_fields/0]).
 
 %% gen_server based API
--export([start/0, start/1, stop/0, lookup/1, lookup_pl/1,
-         reload/0, reload/1, filename/0]).
+-export([start/0, start/1, start_link/1, start_link/2, stop/0,
+         lookup/1, lookup_pl/1, reload/0, reload/1, filename/0]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, terminate/2, code_change/3,
@@ -176,6 +176,7 @@
           "Satellite Provider","Other","Aland Islands","Guernsey",
           "Isle of Man","Jersey", "Saint Barthelemy","Saint Martin"}).
 
+
 -record(geoipdb, {type = ?GEOIP_COUNTRY_EDITION,
                   record_length = ?STANDARD_RECORD_LENGTH,
                   segments = 0,
@@ -236,32 +237,62 @@ reload() ->
 reload(FileName) ->
     case new(FileName) of
         {ok, NewState} ->
-            gen_server:call(?MODULE, {reload, NewState});
+            Workers = egeoip_sup:worker_names(),
+            [gen_server:call(W, {reload, NewState})  || W <- tuple_to_list(Workers)];
         Error ->
             Error
     end.
 
-%% @spec start() -> {ok, Pid}
-%% @doc Start the server using the default priv/GeoLitecity.dat.gz database.
+%% @spec start() -> ok
+%% @doc Start the egeoip application with the default database.
 start() ->
-    start(city).
+    application:start(egeoip).
 
-%% @spec start(Path) -> {ok, Pid}
-%% @doc Start the server using the database at Path.
-start(FileName) ->
+%% @spec start(File) -> ok
+%% @doc Start the egeoip application with the File as database.
+start(File) ->
+    application:load(egeoip),
+    application:set_env(egeoip, dbfile, File),
+    start().
+
+
+%% @spec start_link(Name) -> {ok, Pid}
+%% @doc Start the server using the default priv/GeoLitecity.dat.gz database.
+%%      The process will be registered as Name
+start_link(Name) ->
+    start_link(Name, city).
+
+%% @spec start_link(Name, Path) -> {ok, Pid}
+%% @doc Start the server using the database at Path registered as Name.
+start_link(Name, FileName) ->
     gen_server:start_link(
-      {local, ?MODULE}, ?MODULE, FileName, []).
+      {local, Name}, ?MODULE, FileName, []).
 
 %% @spec stop() -> ok
 %% @doc Stop the server.
 stop() ->
-    gen_server:cast(?MODULE, stop).
+    application:stop(egeoip).
 
 %% @spec lookup(Address) -> geoip()
 %% @doc Get a geoip() record for the given address. Fields can be obtained
 %%      from the record using get/2.
 lookup(Address) ->
-    gen_server:call(?MODULE, {lookup, Address}).
+    case whereis(egeoip) of
+        undefined ->
+            Worker = get_worker(Address),
+            gen_server:call(Worker, {lookup, Address});
+        Pid ->
+            unregister(egeoip),
+            register(egeoip_0, Pid),
+            FileName = gen_server:call(Pid, filename),
+            [egeoip_0 | Workers] = tuple_to_list(egeoip_sup:worker_names()),
+            Specs = egeoip_sup:worker(Workers, FileName),
+            lists:map(fun(Spec) ->
+                              {ok, _Pid} = supervisor:start_child(egeoip_sup, Spec)
+                      end, Specs),
+            lookup(Address)
+    end.
+
 
 %% @spec lookup_pl(Address) -> geoip()
 %% @doc Get a proplist version of a geoip() record for the given address.
@@ -283,7 +314,7 @@ record_fields() ->
 %% @spec filename() -> string()
 %% @doc Get the database filename currently being used by the server.
 filename() ->
-    gen_server:call(?MODULE, filename).
+    gen_server:call(element(1, egeoip_sup:worker_names()), filename).
 
 %% gen_server callbacks
 
@@ -324,7 +355,10 @@ handle_info(Info, State) ->
     {noreply, State}.
 
 %% Implementation
-
+get_worker(Address) ->
+    element(1 + erlang:phash2(Address) band 7,
+            egeoip_sup:worker_names()).
+    
 %% @spec new() -> {ok, geoipdb()}
 %% @doc Create a new geoipdb database record using the default
 %%      priv/GeoLiteCity.dat.gz database.
@@ -630,11 +664,9 @@ bench(Count) ->
          "61.16.226.206",
          "64.180.1.78",
          "138.217.4.11"],
-    {ok, _} = start(),
     StartParse = now(),
     benchcall(fun () -> [lookup(X) || X <- SampleIPs] end, Count),
     EndParse = now(),
-    ok = stop(),
     {parse_100k_addr, pytime(EndParse) - pytime(StartParse)}.
 
 ensure_binary_list(L) when is_list(L) ->
@@ -651,16 +683,26 @@ bench() ->
 -include_lib("eunit/include/eunit.hrl").
 -ifdef(TEST).
 
-egeoip_bench_test() ->
+run_test_() ->
+    {inorder,
+     {foreach,
+      fun start/0,
+      fun(_) -> stop() end,
+      [fun egeoip_bench/0,
+       fun egeoip/0,
+       fun non_parallel/0
+      ]
+     }}.
+
+egeoip_bench() ->
     ?assertMatch(
        {_, _},
        bench(1)),
     ok.
 
-egeoip_test() ->
+egeoip() ->
     {ok, IpAddressLong} = ip2long({207,145,216,106}),
     {ok, IpAddressLong} = ip2long("207.145.216.106"),
-    egeoip:start(),
     {ok, R} = egeoip:lookup(IpAddressLong),
     #geoip{country_code = "US",
            country_code3 = "USA",
@@ -673,7 +715,29 @@ egeoip_test() ->
            country_code3 = "USA",
            country_name = "United States",
            region = <<"NY">>,
-           _ = _} = R1,
-    ok.
+           _ = _} = R1.
+
+non_parallel() ->
+    %% recreate the non-parallelized version of egeoip and then verify
+    %% that the upgrade works.
+    Workers = [Egeoip | T] = tuple_to_list(egeoip_sup:worker_names()),
+    %% Remove all worker processes except for the first one
+    lists:map(fun(Worker) ->
+                      ok = supervisor:terminate_child(egeoip_sup, Worker),
+                      ok = supervisor:delete_child(egeoip_sup, Worker)
+              end, T),
+    Pid = whereis(Egeoip),
+    unregister(Egeoip),
+    register(egeoip, Pid),
+    ?assert(Pid == whereis(egeoip)),
+    [?assert(undefined == whereis(W)) || W <- Workers],
+    %% Should upgrade when calling lookup
+    {ok, _R} = egeoip:lookup("24.24.24.24"),
+    ?assert(undefined == whereis(egeoip)),
+    [?assertNot(undefined == whereis(W)) || W <- Workers].
+
+no_egeoip_test() ->
+    Lookup = {lookup, "24.24.24.24"},
+    ?assertExit({noproc,{gen_server,call,[egeoip,Lookup]}},gen_server:call(egeoip, Lookup)).
 
 -endif.
