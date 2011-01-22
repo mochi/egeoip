@@ -1,4 +1,4 @@
-REBAR ?= /usr/bin/rebar
+REBAR ?= $(shell which rebar)
 REBAR_FLAGS ?=
 
 all:
