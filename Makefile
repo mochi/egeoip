@@ -1,13 +1,15 @@
 REBAR ?= $(shell which rebar 2>/dev/null || which ./rebar)
 REBAR_FLAGS ?=
 
-all:
+all: compile
+
+compile:
 	$(REBAR) compile $(REBAR_FLAGS)
 
 doc:
 	$(REBAR) doc $(REBAR_FLAGS)
 
-test:
+test: compile
 	$(REBAR) eunit $(REBAR_FLAGS)
 
 clean:
