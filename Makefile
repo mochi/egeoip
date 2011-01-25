@@ -1,4 +1,4 @@
-REBAR ?= $(shell which rebar)
+REBAR ?= $(shell which rebar 2>/dev/null || which --show-dot ./rebar)
 REBAR_FLAGS ?=
 
 all:
