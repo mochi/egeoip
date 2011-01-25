@@ -1,4 +1,6 @@
-/ebin
-/doc
+*~
+.eunit
 /_test
+/doc
+/ebin
 /priv
