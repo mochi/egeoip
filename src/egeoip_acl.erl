@@ -216,8 +216,8 @@ merge_ip_groups([<<Addr:16/integer,Ranges/binary>> | Groups], IPsBlob, IPsIndex)
 %%
 %% Tests
 %%
--include_lib("eunit/include/eunit.hrl").
 -ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
 
 ip_parse_test() ->
     [IP = parse_ip24(BinIP) || {IP, BinIP} <- test_ips()],
