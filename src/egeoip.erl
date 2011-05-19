@@ -691,6 +691,7 @@ run_test_() ->
       fun(_) -> stop() end,
       [fun egeoip_bench/0,
        fun egeoip/0,
+       fun egeoip_lookup/0,
        fun non_parallel/0
       ]
      }}.
@@ -717,6 +718,11 @@ egeoip() ->
            country_name = "United States",
            region = <<"NY">>,
            _ = _} = R1.
+
+egeoip_lookup() ->
+    {ok, R1} =  egeoip:lookup("24.24.24.24"),
+    {ok, R2} = egeoip:lookup({24,24,24,24}),
+    ?assertEqual(R1,R2).
 
 non_parallel() ->
     %% recreate the non-parallelized version of egeoip and then verify
