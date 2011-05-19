@@ -358,7 +358,7 @@ handle_info(Info, State) ->
 get_worker(Address) ->
     element(1 + erlang:phash2(Address) band 7,
             egeoip_sup:worker_names()).
-    
+
 %% @spec new() -> {ok, geoipdb()}
 %% @doc Create a new geoipdb database record using the default
 %%      priv/GeoLiteCity.dat.gz database.
@@ -386,7 +386,8 @@ new(Path) ->
 
 %% @spec lookup(D::geoipdb(), Addr) -> {ok, geoip()}
 %% @doc Lookup a geoip record for Addr using the database D.
-lookup(D, Addr) when is_list(Addr) ->
+lookup(D, Addr) when is_list(Addr);
+                     is_tuple(Addr) ->
     case ip2long(Addr) of
     {ok, Ip} ->
         lookup(D, Ip);
