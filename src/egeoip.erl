@@ -394,7 +394,7 @@ lookup(D, Addr) when is_list(Addr);
     Error ->
         Error
     end;
-lookup(D, Addr) ->
+lookup(D, Addr) when is_integer(Addr) ->
     get_record(D, Addr).
 
 default_db([]) ->
