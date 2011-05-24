@@ -689,10 +689,10 @@ run_test_() ->
      {foreach,
       fun start/0,
       fun(_) -> stop() end,
-      [fun egeoip_bench/0,
-       fun egeoip/0,
-       fun egeoip_lookup/0,
-       fun non_parallel/0
+      [{"egeoip_bench", fun egeoip_bench/0},
+       {"egeoip", fun egeoip/0},
+       {"egeoip_lookup", fun egeoip_lookup/0},
+       {"non_parallel", fun non_parallel/0}
       ]
      }}.
 
