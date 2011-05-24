@@ -394,7 +394,7 @@ lookup(D, Addr) when is_list(Addr);
     Error ->
         Error
     end;
-lookup(D, Addr) ->
+lookup(D, Addr) when is_integer(Addr) ->
     get_record(D, Addr).
 
 default_db([]) ->
@@ -689,9 +689,10 @@ run_test_() ->
      {foreach,
       fun start/0,
       fun(_) -> stop() end,
-      [fun egeoip_bench/0,
-       fun egeoip/0,
-       fun non_parallel/0
+      [{"egeoip_bench", fun egeoip_bench/0},
+       {"egeoip", fun egeoip/0},
+       {"egeoip_lookup", fun egeoip_lookup/0},
+       {"non_parallel", fun non_parallel/0}
       ]
      }}.
 
@@ -717,6 +718,11 @@ egeoip() ->
            country_name = "United States",
            region = <<"NY">>,
            _ = _} = R1.
+
+egeoip_lookup() ->
+    {ok, R1} =  egeoip:lookup("24.24.24.24"),
+    {ok, R2} = egeoip:lookup({24,24,24,24}),
+    ?assertEqual(R1,R2).
 
 non_parallel() ->
     %% recreate the non-parallelized version of egeoip and then verify
