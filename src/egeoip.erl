@@ -200,6 +200,8 @@
 %% @spec get(R::geoip(), Field::geoip_field()) -> term()
 %% @doc Get a field from the geoip record returned by lookup.
 
+get(R, country) ->
+    R#geoip.country_code;
 get(R, country_code) ->
     R#geoip.country_code;
 get(R, country_code3) ->
