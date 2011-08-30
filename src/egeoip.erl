@@ -325,18 +325,30 @@ init(FileName) ->
 
 %% @spec handle_call(Msg, From, State) -> term()
 %% @doc gen_server callback.
-handle_call({lookup, Address}, _From, State) ->
+handle_call(What,From,State) ->
+    try 
+        do_handle_call(What,From,State)
+    catch 
+        _:R -> 
+            log_error([{handle_call,What},{error,R}]),
+            {reply,{error,R},State}
+    end.
+
+do_handle_call({lookup, Address}, _From, State) ->
     Res = lookup(State, Address),
     {reply, Res, State};
-handle_call({reload, NewState}, _From, _State) ->
+do_handle_call({reload, NewState}, _From, _State) ->
     {reply, ok, NewState};
-handle_call(filename, _From, State) ->
+do_handle_call(filename, _From, State) ->
     {reply, State#geoipdb.filename, State}.
 
 %% @spec handle_cast(Msg, State) -> term()
 %% @doc gen_server callback.
 handle_cast(stop, State) ->
-    {stop, normal, State}.
+    {stop, normal, State};
+handle_cast(What, State) ->
+    log_error([{handle_cast, What}]),
+    {noreply, State}.
 
 %% @spec terminate(Reason, State) -> ok
 %% @doc gen_server callback.
@@ -351,13 +363,16 @@ code_change(_OldVsn, State, _Extra) ->
 %% @spec handle_info(Info, State) -> {noreply, State}
 %% @doc gen_server callback.
 handle_info(Info, State) ->
-    error_logger:info_report([{'INFO', Info}, {'State', State}]),
+    log_error([{handle_info,Info}]),
     {noreply, State}.
 
 %% Implementation
 get_worker(Address) ->
     element(1 + erlang:phash2(Address) band 7,
             egeoip_sup:worker_names()).
+
+log_error(Info) ->
+    error_logger:info_report([?MODULE|Info]).
 
 %% @spec new() -> {ok, geoipdb()}
 %% @doc Create a new geoipdb database record using the default
@@ -378,10 +393,7 @@ new(Path) ->
             ok = check_state(State),
             R;
     false ->
-        io:format("GeoLite City Database not found: ~p.~n", [Path]),
-        io:format(
-          "Download from: http://www.maxmind.com/app/geolitecity~n"),
-        {error, geoip_db_not_found}
+	    {error, {geoip_db_not_found,Path}}
     end.
 
 %% @spec lookup(D::geoipdb(), Addr) -> {ok, geoip()}
