@@ -37,5 +37,5 @@ worker([], _File) ->
     [];
 worker([Name | T], File) ->
     [{Name,
-     {egeoip, start_link, [Name, File]},
-     permanent, 5000, worker, [egeoip]} | worker(T, File)].
+      {egeoip, start_link, [Name, File]},
+      permanent, 5000, worker, [egeoip]} | worker(T, File)].
