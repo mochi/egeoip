@@ -399,7 +399,8 @@ new(Path) ->
 %% @spec lookup(D::geoipdb(), Addr) -> {ok, geoip()}
 %% @doc Lookup a geoip record for Addr using the database D.
 lookup(D, Addr) when is_list(Addr);
-                     is_tuple(Addr) ->
+                     is_tuple(Addr);
+                     is_binary(Addr) ->
     case ip2long(Addr) of
     {ok, Ip} ->
         lookup(D, Ip);
@@ -473,6 +474,10 @@ ip2long({B3, B2, B1, B0}) ->
 ip2long({W7, W6, W5, W4, W3, W2, W1, W0}) ->
     {ok, (W7 bsl 112) bor (W6 bsl 96) bor (W5 bsl 80) bor (W4 bsl 64) bor
     (W3 bsl 48) bor (W2 bsl 32) bor (W1 bsl 16) bor W0};
+ip2long(<<Addr:32>>) ->
+    {ok, Addr};
+ip2long(<<Addr:128>>) ->
+    {ok, Addr};
 ip2long(_) ->
     {error, badmatch}.
 
@@ -717,6 +722,7 @@ egeoip_bench() ->
 egeoip() ->
     {ok, IpAddressLong} = ip2long({207,145,216,106}),
     {ok, IpAddressLong} = ip2long("207.145.216.106"),
+    {ok, IpAddressLong} = ip2long(<<207,145,216,106>>),
     {ok, R} = egeoip:lookup(IpAddressLong),
     #geoip{country_code = "US",
            country_code3 = "USA",
