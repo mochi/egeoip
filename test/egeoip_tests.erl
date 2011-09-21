@@ -10,9 +10,24 @@ run_test_() ->
       [{"egeoip_bench", fun egeoip_bench/0},
        {"egeoip", fun egeoip/0},
        {"egeoip_lookup", fun egeoip_lookup/0},
+       {"egeoip_reserved", {generator, fun egeoip_reserved_/0}},
        {"non_parallel", fun non_parallel/0}
       ]
      }}.
+
+egeoip_reserved_() ->
+    %% We don't test all of them, just a few.
+    [?_assertMatch(
+        {ok, #geoip{country_code = "",
+                    country_code3 = "",
+                    country_name = "",
+                    region = <<>>,
+                    city = <<>>,
+                    postal_code = <<>>,
+                    area_code = 0,
+                    dma_code = 0}},
+       egeoip:lookup(Ip))
+     || Ip <- ["0.0.0.1", "127.0.0.1", "10.0.0.1", "192.168.0.1"]].
 
 egeoip_bench() ->
     ?assertMatch(
@@ -39,7 +54,7 @@ egeoip() ->
            _ = _} = R1.
 
 egeoip_lookup() ->
-    {ok, R1} =  egeoip:lookup("24.24.24.24"),
+    {ok, R1} = egeoip:lookup("24.24.24.24"),
     {ok, R2} = egeoip:lookup({24,24,24,24}),
     ?assertEqual(R1,R2).
 
