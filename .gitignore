@@ -1,6 +1,10 @@
 *~
-.eunit
+/.eunit
 /_test
 /doc
 /ebin
 /priv
+/TEST-*.xml
+/deps
+*.swp
+.DS_Store
