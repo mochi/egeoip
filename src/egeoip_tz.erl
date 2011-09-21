@@ -4,7 +4,7 @@
 -module(egeoip_tz).
 -export([utc_offset/1]).
 -record(geoip, {country_code, country_code3, country_name, region,
-    city, postal_code, latitude, longitude, area_code, dma_code}).
+                city, postal_code, latitude, longitude, area_code, dma_code}).
 utc_offset(#geoip{country_code = "US", region = <<"AL">>}) -> -21600;
 utc_offset(#geoip{country_code = "US", region = <<"AK">>}) -> -32400;
 utc_offset(#geoip{country_code = "US", region = <<"AZ">>}) -> -25200;

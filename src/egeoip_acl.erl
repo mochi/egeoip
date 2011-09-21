@@ -1,8 +1,8 @@
 -module(egeoip_acl).
 -export([
-    parse_file/1,
-    lookup/2
-]).
+         parse_file/1,
+         lookup/2
+        ]).
 
 %% @type ip24() = list() | binary() | {int(), int(), int()}
 %% @type ip32() = list() | binary() | {int(), int(), int(), int()}
@@ -44,19 +44,19 @@ parse_file(Filename) ->
     {IPsBlob, IPsIndex, Zones}.
 
 %% @spec lookup(ip(), acldb()) -> binary() | notfound | invalid_ip
-%% @doc Searches for 24-bit or 32-bit IP in the database generated from ACL 
+%% @doc Searches for 24-bit or 32-bit IP in the database generated from ACL
 %%      file. Returns a binary name of the zone or 'notfound' if there's no
 %%      zone associated with the IP.
 lookup(invalid_ip, _) -> invalid_ip;
 lookup(<<Prefix:16/integer, C:8>>, {IPsBlob, IPsIndex, Zones}) ->
     IndexOffset = Prefix * 4,
     << _:(IndexOffset)/binary,
-        BucketOffset:16/integer,
-        BucketSize:16/integer,
-        _/binary >> = IPsIndex,
+       BucketOffset:16/integer,
+       BucketSize:16/integer,
+       _/binary >> = IPsIndex,
     << _:(BucketOffset)/binary,
-        Ranges:(BucketSize)/binary,
-        _/binary >> = IPsBlob,
+       Ranges:(BucketSize)/binary,
+       _/binary >> = IPsBlob,
     case lookup_ip(C, Ranges) of
         V when is_integer(V) ->
             element(V, Zones);
@@ -73,9 +73,9 @@ parse_ip(IP) when is_binary(IP) ->
     parse_ip(binary_to_list(IP));
 parse_ip(IP) when is_list(IP) ->
     case lists:map(
-            fun list_to_integer/1,
-            string:tokens(IP, ".")
-            ) of
+           fun list_to_integer/1,
+           string:tokens(IP, ".")
+          ) of
         [A, B, C] -> <<A:8, B:8, C:8>>;
         [A, B, C, _] -> <<A:8, B:8, C:8>>;
         _ -> invalid_ip
@@ -88,14 +88,14 @@ lookup_ip(C, Bin) ->
     Left = Size div 2,
     Right = Size - Left - 1,
     << Prefix:Left/binary-unit:32,
-        Start:8, End:8, ZNum:16/integer,
-        Suffix:Right/binary-unit:32 >> = Bin,
+       Start:8, End:8, ZNum:16/integer,
+       Suffix:Right/binary-unit:32 >> = Bin,
     case C of
         C when C < Start ->
             lookup_ip(C, Prefix);
         C when C > End ->
             lookup_ip(C, Suffix);
-        C when C >= Start, C =< End -> 
+        C when C >= Start, C =< End ->
             ZNum;
         C -> notfound
     end.
@@ -129,11 +129,11 @@ parse_line([_ | T], Zones) ->
 %%       sorting.
 parse_ips(IPsBin) ->
     reduce_ips(
-        lists:sort(
-            split_ips(IPsBin, [])
-        ),
-        []
-    ).
+      lists:sort(
+        split_ips(IPsBin, [])
+       ),
+      []
+     ).
 
 split_ips(<<>>, Acc) -> Acc;
 split_ips(<<"\n", Rest/binary>>, Acc) ->
@@ -155,14 +155,14 @@ split_ips(<<IP:11/binary, ".0/24;", Rest/binary>>, Acc) ->
 
 parse_ip24(IP) ->
     [A, B, C] = lists:map(
-            fun list_to_integer/1,
-            string:tokens(binary_to_list(IP), ".")
-        ),
+                  fun list_to_integer/1,
+                  string:tokens(binary_to_list(IP), ".")
+                 ),
     <<A:8,B:8,C:8>>.
 
 reduce_ips([], Groups) -> Groups;
 reduce_ips([<<A:8,B:8,C:8>> | IPs], [<<A:8,B:8,Start:8,End:8>> | Groups])
-                                                        when End =:= C - 1 ->
+  when End =:= C - 1 ->
     reduce_ips(IPs, [<<A:8,B:8,Start:8,C:8>> | Groups]);
 reduce_ips([<<A:8,B:8,C:8>> | IPs], Groups) ->
     reduce_ips(IPs, [<<A:8,B:8,C:8,C:8>> | Groups]).
@@ -170,34 +170,34 @@ reduce_ips([<<A:8,B:8,C:8>> | IPs], Groups) ->
 zones_index(IPsByZones) ->
     ZonesList = [Zone || {Zone, _IPs} <- IPsByZones],
     {ZonesTree, _} = lists:foldl(
-                        fun (Zone, {Acc, Num}) ->
-                            {gb_trees:insert(Zone, Num, Acc), Num + 1}
-                        end,
-                    {gb_trees:empty(), 1}, ZonesList),
+                       fun (Zone, {Acc, Num}) ->
+                               {gb_trees:insert(Zone, Num, Acc), Num + 1}
+                       end,
+                       {gb_trees:empty(), 1}, ZonesList),
     {
-        list_to_tuple(ZonesList),
-        ZonesTree
+      list_to_tuple(ZonesList),
+      ZonesTree
     }.
 
 extract_ips(IPsByZone, ZonesTree) ->
     lists:sort(lists:flatten([
-        begin
-            {value, Num} = gb_trees:lookup(Zone, ZonesTree),
-            [{IP, Num} || IP <- IPs]
-        end
-            || {Zone, IPs} <- IPsByZone
-    ])).
+                              begin
+                                  {value, Num} = gb_trees:lookup(Zone, ZonesTree),
+                                  [{IP, Num} || IP <- IPs]
+                              end
+                              || {Zone, IPs} <- IPsByZone
+                             ])).
 
 ips_index(IPZoneKV) ->
     IPGroups = group_ips(IPZoneKV, []),
     ZeroIPsIndex =  list_to_binary(
-        lists:duplicate(256 * 256, <<0:32/integer>>)
-    ),
+                      lists:duplicate(256 * 256, <<0:32/integer>>)
+                     ),
     merge_ip_groups(IPGroups, <<>>, ZeroIPsIndex).
 
 group_ips([], Groups) -> Groups;
 group_ips([{<<Addr:16/integer, Start:8, End:8>>, Zone} | IPs],
-            [<<Addr:16/integer, Rest/binary>> | Groups]) ->
+          [<<Addr:16/integer, Rest/binary>> | Groups]) ->
     group_ips(IPs, [<<Addr:16/integer, Rest/binary, Start:8, End:8, Zone:16/integer>> | Groups]);
 group_ips([{<<Addr:16/integer, Start:8, End:8>>, Zone} | IPs], Groups) ->
     group_ips(IPs, [<<Addr:16/integer, Start:8, End:8, Zone:16/integer>> | Groups]).
@@ -207,11 +207,11 @@ merge_ip_groups([<<Addr:16/integer,Ranges/binary>> | Groups], IPsBlob, IPsIndex)
     L = Addr * 4,
     <<Prefix:L/binary, 0:32/integer, Suffix/binary>> = IPsIndex,
     merge_ip_groups(Groups, <<IPsBlob/binary, Ranges/binary>>,
-                << Prefix/binary,
-                    (byte_size(IPsBlob)):16/integer,
-                    (byte_size(Ranges)):16/integer,
-                    Suffix/binary >>
-    ).
+                    << Prefix/binary,
+                       (byte_size(IPsBlob)):16/integer,
+                       (byte_size(Ranges)):16/integer,
+                       Suffix/binary >>
+                   ).
 
 %%
 %% Tests
@@ -225,52 +225,41 @@ ip_parse_test() ->
 
 test_ips() ->
     [
-        {<<192,168,0>>, <<"192.168.0">>},
-        {<<200,23,11>>, <<"200.23.11">>},
-        {<<127,127,127>>, <<"127.127.127">>}
+     {<<192,168,0>>, <<"192.168.0">>},
+     {<<200,23,11>>, <<"200.23.11">>},
+     {<<127,127,127>>, <<"127.127.127">>}
     ].
 
 ips_parse_test() ->
     [
-        <<60, 169, 4, 4>>,
-        <<60, 166, 7, 7>>,
-        <<60, 166, 3, 3>>,
-        <<60, 166, 0, 0>>
+     <<60, 169, 4, 4>>,
+     <<60, 166, 7, 7>>,
+     <<60, 166, 3, 3>>,
+     <<60, 166, 0, 0>>
     ] =
         parse_ips(
-            <<"60.166.0.0/24;60.166.7.0/24;\n60.166.3.0/24;60.169.4.0/24;">>
-        ),
+          <<"60.166.0.0/24;60.166.7.0/24;\n60.166.3.0/24;60.169.4.0/24;">>
+         ),
     ok.
 
 line_parse_test() ->
-    [
-
-        {
-            <<"CNC_AnHui">>,
-            [
-                <<58, 243, 45, 45>>,
-                <<58, 242, 46, 48>>
-            ]
-        },
-        {
-            <<"CT_AnHui">>,
-            [
-                <<60, 166, 10, 13>>,
-                <<60, 166, 0, 3>>
-            ]
-        }
-    ] = parse_line(test_lines(), []),
+    [{<<"CNC_AnHui">>,
+      [<<58, 243, 45, 45>>,
+       <<58, 242, 46, 48>>]},
+     {<<"CT_AnHui">>,
+      [<<60, 166, 10, 13>>,
+       <<60, 166, 0, 3>>]}] = parse_line(test_lines(), []),
     ok.
 
 test_lines() ->
     [
-        <<"acl \"CT_AnHui\" {\n">>,
-        <<"60.166.0.0/24;60.166.1.0/24;60.166.2.0/24;60.166.3.0/24;\n">>,
-        <<"60.166.10.0/24;60.166.11.0/24;60.166.12.0/24;60.166.13.0/24;\n">>,
-        <<"};\n">>,
-        <<"acl \"CNC_AnHui\" {\n">>,
-        <<"58.243.45.0/24;58.242.46.0/24;58.242.47.0/24;58.242.48.0/24;\n">>,
-        <<"};\n">>
+     <<"acl \"CT_AnHui\" {\n">>,
+     <<"60.166.0.0/24;60.166.1.0/24;60.166.2.0/24;60.166.3.0/24;\n">>,
+     <<"60.166.10.0/24;60.166.11.0/24;60.166.12.0/24;60.166.13.0/24;\n">>,
+     <<"};\n">>,
+     <<"acl \"CNC_AnHui\" {\n">>,
+     <<"58.243.45.0/24;58.242.46.0/24;58.242.47.0/24;58.242.48.0/24;\n">>,
+     <<"};\n">>
     ].
 
 -endif.
