@@ -1,8 +1,12 @@
 -module(egeoip_acl).
--export([
-         parse_file/1,
-         lookup/2
-        ]).
+-export([parse_file/1,
+         lookup/2]).
+
+-ifdef(TEST).
+-export([parse_ip24/1,
+         parse_ips/1,
+         parse_line/2]).
+-endif.
 
 %% @type ip24() = list() | binary() | {int(), int(), int()}
 %% @type ip32() = list() | binary() | {int(), int(), int(), int()}
@@ -212,54 +216,3 @@ merge_ip_groups([<<Addr:16/integer,Ranges/binary>> | Groups], IPsBlob, IPsIndex)
                        (byte_size(Ranges)):16/integer,
                        Suffix/binary >>
                    ).
-
-%%
-%% Tests
-%%
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
-
-ip_parse_test() ->
-    [IP = parse_ip24(BinIP) || {IP, BinIP} <- test_ips()],
-    ok.
-
-test_ips() ->
-    [
-     {<<192,168,0>>, <<"192.168.0">>},
-     {<<200,23,11>>, <<"200.23.11">>},
-     {<<127,127,127>>, <<"127.127.127">>}
-    ].
-
-ips_parse_test() ->
-    [
-     <<60, 169, 4, 4>>,
-     <<60, 166, 7, 7>>,
-     <<60, 166, 3, 3>>,
-     <<60, 166, 0, 0>>
-    ] =
-        parse_ips(
-          <<"60.166.0.0/24;60.166.7.0/24;\n60.166.3.0/24;60.169.4.0/24;">>
-         ),
-    ok.
-
-line_parse_test() ->
-    [{<<"CNC_AnHui">>,
-      [<<58, 243, 45, 45>>,
-       <<58, 242, 46, 48>>]},
-     {<<"CT_AnHui">>,
-      [<<60, 166, 10, 13>>,
-       <<60, 166, 0, 3>>]}] = parse_line(test_lines(), []),
-    ok.
-
-test_lines() ->
-    [
-     <<"acl \"CT_AnHui\" {\n">>,
-     <<"60.166.0.0/24;60.166.1.0/24;60.166.2.0/24;60.166.3.0/24;\n">>,
-     <<"60.166.10.0/24;60.166.11.0/24;60.166.12.0/24;60.166.13.0/24;\n">>,
-     <<"};\n">>,
-     <<"acl \"CNC_AnHui\" {\n">>,
-     <<"58.243.45.0/24;58.242.46.0/24;58.242.47.0/24;58.242.48.0/24;\n">>,
-     <<"};\n">>
-    ].
-
--endif.
