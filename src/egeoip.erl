@@ -477,13 +477,54 @@ ip2long(_) ->
     {error, badmatch}.
 
 get_record(D, Ip) ->
-    case seek_country(D, Ip) of
-    {ok, SeekCountry} ->
-        get_record(D, Ip, SeekCountry);
-    Error ->
-        Error
+    case is_reserved(Ip) of
+        true ->
+            {error, ip_in_iana_reserved_range};
+        false ->
+            case seek_country(D, Ip) of
+                {ok, SeekCountry} ->
+                    get_record(D, Ip, SeekCountry);
+                Error ->
+                    Error
+            end
     end.
 
+%%% Information originally taken from
+%%% http://www.iana.org/assignments/ipv4-address-space/
+is_reserved(Ip) ->
+    %% 0.0.0.0/8 self-identification [RFC5735]
+    (Ip >= 0 andalso Ip < 16777216)
+    %% 10.0.0.0/8 private-use networks [RFC1918]
+        orelse (Ip >= 167772160 andalso Ip < 184549376)
+    %% 127.0.0.0/8 loopback [RFC5735]
+        orelse (Ip >= 2130706432 andalso Ip < 2147483648)
+    %% 169.254.0.0/16 link local [RFC5735]
+        orelse (Ip >= 2851995648 andalso Ip < 2852061184)
+    %% 192.0.2.0/24 TEST-NET-1 [RFC5737]
+        orelse (Ip >= 3221225984 andalso Ip < 3221226240)
+    %% 192.88.99.0/24 6to4 relay anycast [RFC3068]
+        orelse (Ip >= 3227017984 andalso Ip < 3227018240)
+    %% 192.168.0.0/16 private-use networks [RFC1918]
+        orelse (Ip >= 3232235520 andalso Ip < 3232301056)
+    %% 192.0.0.0/24 IANA IPv4 special purpose address registry
+    %% [RFC5736]
+        orelse (Ip >= 3221225472 andalso Ip < 3221225728)
+    %% 198.18.0.0/15 network interconnect device benchmark testing
+    %% [RFC5735]
+        orelse (Ip >= 3323068416 andalso Ip < 3323199488)
+    %% 198.51.100.0/24 TEST-NET-2 [RFC5737]
+        orelse (Ip >= 3325256704 andalso Ip < 3325256960)
+    %% 203.0.113.0/24 TEST-NET-3 [RFC5737]
+        orelse (Ip >= 3405803776 andalso Ip < 3405804032)
+    %% 224.0.0.0/4 multicast [RFC5771], including administratively
+    %% scoped IP multicast [RFC2365] and unicast-prefix-based IPv4
+    %% multicast addresses [RFC6034]
+        orelse (Ip >= 3758096384 andalso Ip < 4026531840)
+    %% 240.0.0.0/4 future use [RFC1112]
+        orelse (Ip >= 4026531840 andalso Ip < 4294967295)
+    %% 255.255.255.255 "limited broadcast" destination address
+    %% [RFC0919] and [RFC0922]
+        orelse (Ip =:= 4294967295).
 
 
 read_structures(_Path, _Data, _, 0) ->
