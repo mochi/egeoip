@@ -13,9 +13,7 @@ run_test_() ->
        {"egeoip_reserved", {generator, fun egeoip_reserved_gen/0}},
        {"country_test", {generator, fun country_test_gen/0}},
        {"country_test2", {generator, fun country_test2_gen/0}},
-       {"non_parallel", fun non_parallel/0}
-      ]
-     }}.
+       {"non_parallel", fun non_parallel/0}]}}.
 
 egeoip_reserved_gen() ->
     %% We don't test all of them, just a few.

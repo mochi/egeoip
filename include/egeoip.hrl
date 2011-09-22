@@ -154,5 +154,13 @@
                   country_names = ?GEOIP_COUNTRY_NAMES
                  }).
 
--record(geoip, {country_code, country_code3, country_name, region,
-                city, postal_code, latitude, longitude, area_code, dma_code}).
+-record(geoip, {country_code = "",
+                country_code3 = "",
+                country_name = "",
+                region = <<>>,
+                city = <<>>,
+                postal_code = <<>>,
+                latitude = 0.0,
+                longitude = 0.0,
+                area_code = 0,
+                dma_code = 0}).

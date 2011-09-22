@@ -119,7 +119,7 @@ stop() ->
 %% @spec lookup(Address) -> geoip()
 %% @doc Get a geoip() record for the given address. Fields can be obtained
 %%      from the record using get/2.
-lookup(Address) ->
+lookup(Address) when is_integer(Address) ->
     case whereis(egeoip) of
         undefined ->
             Worker = get_worker(Address),
@@ -134,8 +134,14 @@ lookup(Address) ->
                               {ok, _Pid} = supervisor:start_child(egeoip_sup, Spec)
                       end, Specs),
             lookup(Address)
+    end;
+lookup(Address) ->
+    case ip2long(Address) of
+        {ok, Ip} ->
+            lookup(Ip);
+        Error ->
+            Error
     end.
-
 
 %% @spec lookup_pl(Address) -> geoip()
 %% @doc Get a proplist version of a geoip() record for the given address.
@@ -177,9 +183,11 @@ handle_call(What,From,State) ->
             {reply,{error,R},State}
     end.
 
+do_handle_call({lookup, Ip}, _From, State) when is_integer(Ip) ->
+    {reply, lookup(State, Ip), State};
 do_handle_call({lookup, Address}, _From, State) ->
-    Res = lookup(State, Address),
-    {reply, Res, State};
+    {ok, Ip} = ip2long(Address),
+    {reply, lookup(State, Ip), State};
 do_handle_call({reload, NewState}, _From, _State) ->
     {reply, ok, NewState};
 do_handle_call(filename, _From, State) ->
@@ -232,26 +240,17 @@ new(Path) ->
         true ->
             Data = load_file(Path),
             Max = ?STRUCTURE_INFO_MAX_SIZE,
-            R = {ok, State} = read_structures(Path, Data, size(Data) - 3, Max),
+            State = read_structures(Path, Data, size(Data) - 3, Max),
             ok = check_state(State),
-            R;
+            {ok, State};
         false ->
 	    {error, {geoip_db_not_found,Path}}
     end.
 
 %% @spec lookup(D::geoipdb(), Addr) -> {ok, geoip()}
 %% @doc Lookup a geoip record for Addr using the database D.
-lookup(D, Addr) when is_list(Addr);
-                     is_tuple(Addr);
-                     is_binary(Addr) ->
-    case ip2long(Addr) of
-        {ok, Ip} ->
-            lookup(D, Ip);
-        Error ->
-            Error
-    end;
 lookup(D, Addr) when is_integer(Addr) ->
-    get_record(D, Addr).
+    {ok, lookup_record(D, Addr)}.
 
 default_db([]) ->
     not_found;
@@ -324,19 +323,10 @@ ip2long(<<Addr:128>>) ->
 ip2long(_) ->
     {error, badmatch}.
 
-get_record(D, Ip) ->
-    case seek_country(D, Ip) of
-        {ok, SeekCountry} ->
-            get_record(D, Ip, SeekCountry);
-        Error ->
-            Error
-    end.
+lookup_record(D, Ip) ->
+    get_record(D, seek_country(D, Ip)).
 
-
-
-read_structures(_Path, _Data, _, 0) ->
-    {error, read_structures_depth_exceeded};
-read_structures(Path, Data, Seek, N) ->
+read_structures(Path, Data, Seek, N) when N > 0 ->
     <<_:Seek/binary, Delim:3/binary, _/binary>> = Data,
     case Delim of
         <<255, 255, 255>> ->
@@ -369,22 +359,23 @@ read_structures(Path, Data, Seek, N) ->
                          _ ->
                              ?STANDARD_RECORD_LENGTH
                      end,
-            Rec = #geoipdb{type = Type,
-                           segments = Segments,
-                           record_length = Length,
-                           data = Data,
-                           filename = Path},
-            {ok, Rec};
+            #geoipdb{type = Type,
+                     segments = Segments,
+                     record_length = Length,
+                     data = Data,
+                     filename = Path};
         _ ->
             read_structures(Path, Data, Seek - 1, N - 1)
     end.
 
-
-get_record(D, _Ip, SeekCountry) ->
-    Length = D#geoipdb.record_length,
-    Segments = D#geoipdb.segments,
+get_record(D, SeekCountry) when D#geoipdb.segments =:= SeekCountry ->
+    #geoip{};
+get_record(D=#geoipdb{record_length = Length,
+                      segments = Segments,
+                      data = Data,
+                      type = Type},
+           SeekCountry) ->
     Seek = SeekCountry + (((2 * Length) - 1) * Segments),
-    Data = D#geoipdb.data,
     <<_:Seek/binary, CountryNum, _/binary>> = Data,
     Country = country_code(D, CountryNum),
     Country3 = country_code3(D, CountryNum),
@@ -395,19 +386,17 @@ get_record(D, _Ip, SeekCountry) ->
     <<_:Seek3/binary, RawLat:24/little, RawLon:24/little, _/binary>> = Data,
     Lat = (RawLat / 10000) - 180,
     Lon = (RawLon / 10000) - 180,
-    Type = D#geoipdb.type,
     {DmaCode, AreaCode} = get_record_ex(Type, Country, Data, Seek3 + 6),
-    Record = #geoip{country_code = Country,
-                    country_code3 = Country3,
-                    country_name = CountryName,
-                    region = Region,
-                    city = City,
-                    postal_code = Postal,
-                    latitude = Lat,
-                    longitude = Lon,
-                    dma_code = DmaCode,
-                    area_code = AreaCode},
-    {ok, Record}.
+    #geoip{country_code = Country,
+           country_code3 = Country3,
+           country_name = CountryName,
+           region = Region,
+           city = City,
+           postal_code = Postal,
+           latitude = Lat,
+           longitude = Lon,
+           dma_code = DmaCode,
+           area_code = AreaCode}.
 
 get_record_ex(?GEOIP_CITY_EDITION_REV1, "US", Data, Seek) ->
     <<_:Seek/binary, Combo:24/little, _/binary>> = Data,
@@ -415,28 +404,24 @@ get_record_ex(?GEOIP_CITY_EDITION_REV1, "US", Data, Seek) ->
 get_record_ex(_, _, _, _) ->
     {0, 0}.
 
-
-
 seek_country(D, Ip) ->
     seek_country(D, Ip, 0, 31).
 
-seek_country(_D, _Ip, _Offset, -1) ->
-    {error, seek_country_depth_exceeded};
-seek_country(D, Ip, Offset, Depth) ->
+seek_country(D, _Ip, Offset, _Depth) when Offset >= D#geoipdb.segments ->
+    Offset;
+seek_country(D, Ip, Offset, Depth) when Depth >= 0 ->
     RecordLength = D#geoipdb.record_length,
     RB = 8 * RecordLength,
     Seek = 2 * RecordLength * Offset,
-    <<_:Seek/binary, X0:RB/little, X1:RB/little, _/binary>> = D#geoipdb.data,
-    X = case (Ip band (1 bsl Depth)) of
-            0 -> X0;
-            _ -> X1
-        end,
-    case (X >= D#geoipdb.segments) of
-        true ->
-            {ok, X};
-        false ->
-            seek_country(D, Ip, X, Depth - 1)
-    end.
+    <<_:Seek/binary, L:RB/little, R:RB/little, _/binary>> = D#geoipdb.data,
+    seek_country(
+      D,
+      Ip,
+      case (Ip band (1 bsl Depth)) of
+          0 -> L;
+          _ -> R
+      end,
+      Depth - 1).
 
 until_null(Binary, Start, Index) ->
     Skip = Start + Index,
