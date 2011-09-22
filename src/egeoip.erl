@@ -31,164 +31,7 @@
 %% little benchmark function
 -export([bench/0, bench/1]).
 
--define(GEOIP_COUNTRY_BEGIN, 16776960).
--define(GEOIP_STATE_BEGIN_REV0, 16700000).
--define(GEOIP_STATE_BEGIN_REV1, 16000000).
--define(STRUCTURE_INFO_MAX_SIZE, 20).
--define(DATABASE_INFO_MAX_SIZE, 100).
--define(GEOIP_COUNTRY_EDITION, 106).
--define(GEOIP_PROXY_EDITION, 8).
--define(GEOIP_ASNUM_EDITION, 9).
--define(GEOIP_NETSPEED_EDITION, 10).
--define(GEOIP_REGION_EDITION_REV0, 112).
--define(GEOIP_REGION_EDITION_REV1, 3).
--define(GEOIP_CITY_EDITION_REV0, 111).
--define(GEOIP_CITY_EDITION_REV1, 2).
--define(GEOIP_ORG_EDITION, 110).
--define(GEOIP_ISP_EDITION, 4).
--define(SEGMENT_RECORD_LENGTH, 3).
--define(STANDARD_RECORD_LENGTH, 3).
--define(ORG_RECORD_LENGTH, 4).
--define(MAX_RECORD_LENGTH, 4).
--define(MAX_ORG_RECORD_LENGTH, 300).
--define(US_OFFSET, 1).
--define(CANADA_OFFSET, 677).
--define(WORLD_OFFSET, 1353).
--define(FIPS_RANGE, 360).
--define(GEOIP_UNKNOWN_SPEED, 0).
--define(GEOIP_DIALUP_SPEED, 1).
--define(GEOIP_CABLEDSL_SPEED, 2).
--define(GEOIP_CORPORATE_SPEED, 3).
--define(GEOIP_NUM_COUNTRIES, 252).
--define(GEOIP_COUNTRY_CODES, {
-          "AP","EU","AD","AE","AF","AG","AI","AL","AM","AN",
-          "AO","AQ","AR","AS","AT","AU","AW","AZ","BA","BB",
-          "BD","BE","BF","BG","BH","BI","BJ","BM","BN","BO",
-          "BR","BS","BT","BV","BW","BY","BZ","CA","CC","CD",
-          "CF","CG","CH","CI","CK","CL","CM","CN","CO","CR",
-          "CU","CV","CX","CY","CZ","DE","DJ","DK","DM","DO",
-          "DZ","EC","EE","EG","EH","ER","ES","ET","FI","FJ",
-          "FK","FM","FO","FR","FX","GA","GB","GD","GE","GF",
-          "GH","GI","GL","GM","GN","GP","GQ","GR","GS","GT",
-          "GU","GW","GY","HK","HM","HN","HR","HT","HU","ID",
-          "IE","IL","IN","IO","IQ","IR","IS","IT","JM","JO",
-          "JP","KE","KG","KH","KI","KM","KN","KP","KR","KW",
-          "KY","KZ","LA","LB","LC","LI","LK","LR","LS","LT",
-          "LU","LV","LY","MA","MC","MD","MG","MH","MK","ML",
-          "MM","MN","MO","MP","MQ","MR","MS","MT","MU","MV",
-          "MW","MX","MY","MZ","NA","NC","NE","NF","NG","NI",
-          "NL","NO","NP","NR","NU","NZ","OM","PA","PE","PF",
-          "PG","PH","PK","PL","PM","PN","PR","PS","PT","PW",
-          "PY","QA","RE","RO","RU","RW","SA","SB","SC","SD",
-          "SE","SG","SH","SI","SJ","SK","SL","SM","SN","SO",
-          "SR","ST","SV","SY","SZ","TC","TD","TF","TG","TH",
-          "TJ","TK","TM","TN","TO","TL","TR","TT","TV","TW",
-          "TZ","UA","UG","UM","US","UY","UZ","VA","VC","VE",
-          "VG","VI","VN","VU","WF","WS","YE","YT","RS","ZA",
-          "ZM","ME","ZW","A1","A2","O1","AX","GG","IM","JE",
-          "BL","MF"}).
--define(GEOIP_COUNTRY_CODES3, {
-          "AP","EU","AND","ARE","AFG","ATG","AIA","ALB","ARM","ANT",
-          "AGO","AQ","ARG","ASM","AUT","AUS","ABW","AZE","BIH","BRB",
-          "BGD","BEL","BFA","BGR","BHR","BDI","BEN","BMU","BRN","BOL",
-          "BRA","BHS","BTN","BV","BWA","BLR","BLZ","CAN","CC","COD",
-          "CAF","COG","CHE","CIV","COK","CHL","CMR","CHN","COL","CRI",
-          "CUB","CPV","CX","CYP","CZE","DEU","DJI","DNK","DMA","DOM",
-          "DZA","ECU","EST","EGY","ESH","ERI","ESP","ETH","FIN","FJI",
-          "FLK","FSM","FRO","FRA","FX","GAB","GBR","GRD","GEO","GUF",
-          "GHA","GIB","GRL","GMB","GIN","GLP","GNQ","GRC","GS","GTM",
-          "GUM","GNB","GUY","HKG","HM","HND","HRV","HTI","HUN","IDN",
-          "IRL","ISR","IND","IO","IRQ","IRN","ISL","ITA","JAM","JOR",
-          "JPN","KEN","KGZ","KHM","KIR","COM","KNA","PRK","KOR","KWT",
-          "CYM","KAZ","LAO","LBN","LCA","LIE","LKA","LBR","LSO","LTU",
-          "LUX","LVA","LBY","MAR","MCO","MDA","MDG","MHL","MKD","MLI",
-          "MMR","MNG","MAC","MNP","MTQ","MRT","MSR","MLT","MUS","MDV",
-          "MWI","MEX","MYS","MOZ","NAM","NCL","NER","NFK","NGA","NIC",
-          "NLD","NOR","NPL","NRU","NIU","NZL","OMN","PAN","PER","PYF",
-          "PNG","PHL","PAK","POL","SPM","PCN","PRI","PSE","PRT","PLW",
-          "PRY","QAT","REU","ROU","RUS","RWA","SAU","SLB","SYC","SDN",
-          "SWE","SGP","SHN","SVN","SJM","SVK","SLE","SMR","SEN","SOM",
-          "SUR","STP","SLV","SYR","SWZ","TCA","TCD","TF","TGO","THA",
-          "TJK","TKL","TKM","TUN","TON","TLS","TUR","TTO","TUV","TWN",
-          "TZA","UKR","UGA","UM","USA","URY","UZB","VAT","VCT","VEN",
-          "VGB","VIR","VNM","VUT","WLF","WSM","YEM","YT","SRB","ZAF",
-          "ZMB","MNE","ZWE","A1","A2","O1","ALA","GGY","IMN","JEY",
-          "BLM","MAF"}).
--define(GEOIP_COUNTRY_NAMES, {
-          "Asia/Pacific Region","Europe","Andorra",
-          "United Arab Emirates","Afghanistan","Antigua and Barbuda",
-          "Anguilla","Albania","Armenia","Netherlands Antilles",
-          "Angola","Antarctica","Argentina","American Samoa","Austria",
-          "Australia","Aruba","Azerbaijan","Bosnia and Herzegovina",
-          "Barbados", "Bangladesh","Belgium","Burkina Faso","Bulgaria",
-          "Bahrain","Burundi","Benin","Bermuda","Brunei Darussalam","Bolivia",
-          "Brazil","Bahamas","Bhutan","Bouvet Island","Botswana","Belarus",
-          "Belize","Canada","Cocos (Keeling) Islands",
-          "Congo, The Democratic Republic of the",
-          "Central African Republic","Congo","Switzerland","Cote D'Ivoire",
-          "Cook Islands","Chile","Cameroon","China","Colombia","Costa Rica",
-          "Cuba","Cape Verde","Christmas Island","Cyprus","Czech Republic",
-          "Germany","Djibouti","Denmark","Dominica","Dominican Republic",
-          "Algeria","Ecuador","Estonia","Egypt","Western Sahara","Eritrea",
-          "Spain","Ethiopia","Finland","Fiji", "Falkland Islands (Malvinas)",
-          "Micronesia, Federated States of","Faroe Islands","France",
-          "France, Metropolitan","Gabon","United Kingdom","Grenada",
-          "Georgia","French Guiana", "Ghana","Gibraltar","Greenland",
-          "Gambia","Guinea","Guadeloupe","Equatorial Guinea","Greece",
-          "South Georgia and the South Sandwich Islands","Guatemala",
-          "Guam","Guinea-Bissau","Guyana","Hong Kong",
-          "Heard Island and McDonald Islands","Honduras",
-          "Croatia","Haiti","Hungary","Indonesia", "Ireland","Israel",
-          "India","British Indian Ocean Territory","Iraq",
-          "Iran, Islamic Republic of","Iceland","Italy","Jamaica",
-          "Jordan", "Japan","Kenya","Kyrgyzstan","Cambodia","Kiribati",
-          "Comoros","Saint Kitts and Nevis",
-          "Korea, Democratic People's Republic of","Korea, Republic of",
-          "Kuwait", "Cayman Islands","Kazakhstan",
-          "Lao People's Democratic Republic","Lebanon","Saint Lucia",
-          "Liechtenstein","Sri Lanka","Liberia","Lesotho","Lithuania",
-          "Luxembourg","Latvia","Libyan Arab Jamahiriya","Morocco","Monaco",
-          "Moldova, Republic of","Madagascar","Marshall Islands","Macedonia",
-          "Mali", "Myanmar","Mongolia","Macau","Northern Mariana Islands",
-          "Martinique","Mauritania","Montserrat","Malta","Mauritius",
-          "Maldives", "Malawi","Mexico","Malaysia","Mozambique","Namibia",
-          "New Caledonia","Niger","Norfolk Island","Nigeria","Nicaragua",
-          "Netherlands","Norway","Nepal","Nauru","Niue","New Zealand","Oman",
-          "Panama","Peru","French Polynesia", "Papua New Guinea","Philippines",
-          "Pakistan","Poland","Saint Pierre and Miquelon","Pitcairn Islands",
-          "Puerto Rico","Palestinian Territory","Portugal","Palau", "Paraguay",
-          "Qatar","Reunion","Romania","Russian Federation","Rwanda",
-          "Saudi Arabia","Solomon Islands","Seychelles","Sudan",
-          "Sweden","Singapore","Saint Helena","Slovenia",
-          "Svalbard and Jan Mayen","Slovakia","Sierra Leone","San Marino",
-          "Senegal","Somalia","Suriname", "Sao Tome and Principe",
-          "El Salvador","Syrian Arab Republic","Swaziland",
-          "Turks and Caicos Islands","Chad","French Southern Territories",
-          "Togo","Thailand", "Tajikistan","Tokelau","Turkmenistan",
-          "Tunisia","Tonga","Timor-Leste","Turkey","Trinidad and Tobago",
-          "Tuvalu","Taiwan", "Tanzania, United Republic of","Ukraine",
-          "Uganda","United States Minor Outlying Islands","United States",
-          "Uruguay","Uzbekistan", "Holy See (Vatican City State)",
-          "Saint Vincent and the Grenadines","Venezuela",
-          "Virgin Islands, British","Virgin Islands, U.S.","Vietnam",
-          "Vanuatu","Wallis and Futuna","Samoa","Yemen","Mayotte","Serbia",
-          "South Africa", "Zambia","Montenegro","Zimbabwe","Anonymous Proxy",
-          "Satellite Provider","Other","Aland Islands","Guernsey",
-          "Isle of Man","Jersey", "Saint Barthelemy","Saint Martin"}).
-
-
--record(geoipdb, {type = ?GEOIP_COUNTRY_EDITION,
-                  record_length = ?STANDARD_RECORD_LENGTH,
-                  segments = 0,
-                  data = nil,
-                  filename = nil,
-                  country_codes = ?GEOIP_COUNTRY_CODES,
-                  country_codes3 = ?GEOIP_COUNTRY_CODES3,
-                  country_names = ?GEOIP_COUNTRY_NAMES
-                 }).
-
--record(geoip, {country_code, country_code3, country_name, region,
-                city, postal_code, latitude, longitude, area_code, dma_code}).
+-include("egeoip.hrl").
 
 %% geoip record API
 
@@ -276,7 +119,7 @@ stop() ->
 %% @spec lookup(Address) -> geoip()
 %% @doc Get a geoip() record for the given address. Fields can be obtained
 %%      from the record using get/2.
-lookup(Address) ->
+lookup(Address) when is_integer(Address) ->
     case whereis(egeoip) of
         undefined ->
             Worker = get_worker(Address),
@@ -291,8 +134,14 @@ lookup(Address) ->
                               {ok, _Pid} = supervisor:start_child(egeoip_sup, Spec)
                       end, Specs),
             lookup(Address)
+    end;
+lookup(Address) ->
+    case ip2long(Address) of
+        {ok, Ip} ->
+            lookup(Ip);
+        Error ->
+            Error
     end.
-
 
 %% @spec lookup_pl(Address) -> geoip()
 %% @doc Get a proplist version of a geoip() record for the given address.
@@ -334,9 +183,11 @@ handle_call(What,From,State) ->
             {reply,{error,R},State}
     end.
 
+do_handle_call({lookup, Ip}, _From, State) when is_integer(Ip) ->
+    {reply, lookup(State, Ip), State};
 do_handle_call({lookup, Address}, _From, State) ->
-    Res = lookup(State, Address),
-    {reply, Res, State};
+    {ok, Ip} = ip2long(Address),
+    {reply, lookup(State, Ip), State};
 do_handle_call({reload, NewState}, _From, _State) ->
     {reply, ok, NewState};
 do_handle_call(filename, _From, State) ->
@@ -389,26 +240,17 @@ new(Path) ->
         true ->
             Data = load_file(Path),
             Max = ?STRUCTURE_INFO_MAX_SIZE,
-            R = {ok, State} = read_structures(Path, Data, size(Data) - 3, Max),
+            State = read_structures(Path, Data, size(Data) - 3, Max),
             ok = check_state(State),
-            R;
+            {ok, State};
         false ->
 	    {error, {geoip_db_not_found,Path}}
     end.
 
 %% @spec lookup(D::geoipdb(), Addr) -> {ok, geoip()}
 %% @doc Lookup a geoip record for Addr using the database D.
-lookup(D, Addr) when is_list(Addr);
-                     is_tuple(Addr);
-                     is_binary(Addr) ->
-    case ip2long(Addr) of
-        {ok, Ip} ->
-            lookup(D, Ip);
-        Error ->
-            Error
-    end;
 lookup(D, Addr) when is_integer(Addr) ->
-    get_record(D, Addr).
+    {ok, lookup_record(D, Addr)}.
 
 default_db([]) ->
     not_found;
@@ -481,19 +323,10 @@ ip2long(<<Addr:128>>) ->
 ip2long(_) ->
     {error, badmatch}.
 
-get_record(D, Ip) ->
-    case seek_country(D, Ip) of
-        {ok, SeekCountry} ->
-            get_record(D, Ip, SeekCountry);
-        Error ->
-            Error
-    end.
+lookup_record(D, Ip) ->
+    get_record(D, seek_country(D, Ip)).
 
-
-
-read_structures(_Path, _Data, _, 0) ->
-    {error, read_structures_depth_exceeded};
-read_structures(Path, Data, Seek, N) ->
+read_structures(Path, Data, Seek, N) when N > 0 ->
     <<_:Seek/binary, Delim:3/binary, _/binary>> = Data,
     case Delim of
         <<255, 255, 255>> ->
@@ -526,22 +359,23 @@ read_structures(Path, Data, Seek, N) ->
                          _ ->
                              ?STANDARD_RECORD_LENGTH
                      end,
-            Rec = #geoipdb{type = Type,
-                           segments = Segments,
-                           record_length = Length,
-                           data = Data,
-                           filename = Path},
-            {ok, Rec};
+            #geoipdb{type = Type,
+                     segments = Segments,
+                     record_length = Length,
+                     data = Data,
+                     filename = Path};
         _ ->
             read_structures(Path, Data, Seek - 1, N - 1)
     end.
 
-
-get_record(D, _Ip, SeekCountry) ->
-    Length = D#geoipdb.record_length,
-    Segments = D#geoipdb.segments,
+get_record(D, SeekCountry) when D#geoipdb.segments =:= SeekCountry ->
+    #geoip{};
+get_record(D=#geoipdb{record_length = Length,
+                      segments = Segments,
+                      data = Data,
+                      type = Type},
+           SeekCountry) ->
     Seek = SeekCountry + (((2 * Length) - 1) * Segments),
-    Data = D#geoipdb.data,
     <<_:Seek/binary, CountryNum, _/binary>> = Data,
     Country = country_code(D, CountryNum),
     Country3 = country_code3(D, CountryNum),
@@ -552,19 +386,17 @@ get_record(D, _Ip, SeekCountry) ->
     <<_:Seek3/binary, RawLat:24/little, RawLon:24/little, _/binary>> = Data,
     Lat = (RawLat / 10000) - 180,
     Lon = (RawLon / 10000) - 180,
-    Type = D#geoipdb.type,
     {DmaCode, AreaCode} = get_record_ex(Type, Country, Data, Seek3 + 6),
-    Record = #geoip{country_code = Country,
-                    country_code3 = Country3,
-                    country_name = CountryName,
-                    region = Region,
-                    city = City,
-                    postal_code = Postal,
-                    latitude = Lat,
-                    longitude = Lon,
-                    dma_code = DmaCode,
-                    area_code = AreaCode},
-    {ok, Record}.
+    #geoip{country_code = Country,
+           country_code3 = Country3,
+           country_name = CountryName,
+           region = Region,
+           city = City,
+           postal_code = Postal,
+           latitude = Lat,
+           longitude = Lon,
+           dma_code = DmaCode,
+           area_code = AreaCode}.
 
 get_record_ex(?GEOIP_CITY_EDITION_REV1, "US", Data, Seek) ->
     <<_:Seek/binary, Combo:24/little, _/binary>> = Data,
@@ -572,28 +404,24 @@ get_record_ex(?GEOIP_CITY_EDITION_REV1, "US", Data, Seek) ->
 get_record_ex(_, _, _, _) ->
     {0, 0}.
 
-
-
 seek_country(D, Ip) ->
     seek_country(D, Ip, 0, 31).
 
-seek_country(_D, _Ip, _Offset, -1) ->
-    {error, seek_country_depth_exceeded};
-seek_country(D, Ip, Offset, Depth) ->
+seek_country(D, _Ip, Offset, _Depth) when Offset >= D#geoipdb.segments ->
+    Offset;
+seek_country(D, Ip, Offset, Depth) when Depth >= 0 ->
     RecordLength = D#geoipdb.record_length,
     RB = 8 * RecordLength,
     Seek = 2 * RecordLength * Offset,
-    <<_:Seek/binary, X0:RB/little, X1:RB/little, _/binary>> = D#geoipdb.data,
-    X = case (Ip band (1 bsl Depth)) of
-            0 -> X0;
-            _ -> X1
-        end,
-    case (X >= D#geoipdb.segments) of
-        true ->
-            {ok, X};
-        false ->
-            seek_country(D, Ip, X, Depth - 1)
-    end.
+    <<_:Seek/binary, L:RB/little, R:RB/little, _/binary>> = D#geoipdb.data,
+    seek_country(
+      D,
+      Ip,
+      case (Ip band (1 bsl Depth)) of
+          0 -> L;
+          _ -> R
+      end,
+      Depth - 1).
 
 until_null(Binary, Start, Index) ->
     Skip = Start + Index,
@@ -694,75 +522,3 @@ ensure_binary_list(Other) ->
 
 bench() ->
     bench(10000).
-
-%%
-%% Tests
-%%
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
-
-run_test_() ->
-    {inorder,
-     {foreach,
-      fun start/0,
-      fun(_) -> stop() end,
-      [{"egeoip_bench", fun egeoip_bench/0},
-       {"egeoip", fun egeoip/0},
-       {"egeoip_lookup", fun egeoip_lookup/0},
-       {"non_parallel", fun non_parallel/0}
-      ]
-     }}.
-
-egeoip_bench() ->
-    ?assertMatch(
-       {_, _},
-       bench(1)),
-    ok.
-
-egeoip() ->
-    {ok, IpAddressLong} = ip2long({207,145,216,106}),
-    {ok, IpAddressLong} = ip2long("207.145.216.106"),
-    {ok, IpAddressLong} = ip2long(<<207,145,216,106>>),
-    {ok, R} = egeoip:lookup(IpAddressLong),
-    #geoip{country_code = "US",
-           country_code3 = "USA",
-           country_name = "United States",
-           region = <<"CA">>,
-           _ = _} = R,
-    %% This is the test IP that MaxMind uses
-    {ok, R1} = egeoip:lookup("24.24.24.24"),
-    #geoip{country_code = "US",
-           country_code3 = "USA",
-           country_name = "United States",
-           region = <<"NY">>,
-           _ = _} = R1.
-
-egeoip_lookup() ->
-    {ok, R1} =  egeoip:lookup("24.24.24.24"),
-    {ok, R2} = egeoip:lookup({24,24,24,24}),
-    ?assertEqual(R1,R2).
-
-non_parallel() ->
-    %% recreate the non-parallelized version of egeoip and then verify
-    %% that the upgrade works.
-    Workers = [Egeoip | T] = tuple_to_list(egeoip_sup:worker_names()),
-    %% Remove all worker processes except for the first one
-    lists:map(fun(Worker) ->
-                      ok = supervisor:terminate_child(egeoip_sup, Worker),
-                      ok = supervisor:delete_child(egeoip_sup, Worker)
-              end, T),
-    Pid = whereis(Egeoip),
-    unregister(Egeoip),
-    register(egeoip, Pid),
-    ?assert(Pid == whereis(egeoip)),
-    [?assert(undefined == whereis(W)) || W <- Workers],
-    %% Should upgrade when calling lookup
-    {ok, _R} = egeoip:lookup("24.24.24.24"),
-    ?assert(undefined == whereis(egeoip)),
-    [?assertNot(undefined == whereis(W)) || W <- Workers].
-
-no_egeoip_test() ->
-    Lookup = {lookup, "24.24.24.24"},
-    ?assertExit({noproc,{gen_server,call,[egeoip,Lookup]}},gen_server:call(egeoip, Lookup)).
-
--endif.

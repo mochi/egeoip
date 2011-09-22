@@ -3,7 +3,6 @@
 /_test
 /doc
 /ebin
-/priv
 /TEST-*.xml
 /deps
 *.swp
