@@ -97,12 +97,11 @@
           "Central African Republic","Congo","Switzerland",
           "Cote D'Ivoire","Cook Islands","Chile","Cameroon","China","Colombia",
           "Costa Rica", "Cuba","Cape Verde","Christmas Island","Cyprus",
-          "Czech Republic","Germany","Djibouti","Denmark","Dominica","Dominican
-          Republic", "Algeria","Ecuador","Estonia","Egypt",
+          "Czech Republic","Germany","Djibouti","Denmark","Dominica",
+          "Dominican Republic", "Algeria","Ecuador","Estonia","Egypt",
           "Western Sahara","Eritrea","Spain","Ethiopia","Finland","Fiji",
           "Falkland Islands (Malvinas)","Micronesia, Federated States of",
-          "Faroe Islands","France","Sint Maarten (Dutch
-          part)","Gabon","United Kingdom","Grenada","Georgia",
+          "Faroe Islands","France","Sint Maarten (Dutch part)","Gabon","United Kingdom","Grenada","Georgia",
           "French Guiana", "Ghana","Gibraltar","Greenland","Gambia","Guinea",
           "Guadeloupe","Equatorial Guinea","Greece",
           "South Georgia and the South Sandwich Islands","Guatemala",
@@ -116,13 +115,11 @@
           "Korea, Republic of","Kuwait", "Cayman Islands","Kazakhstan",
           "Lao People's Democratic Republic","Lebanon","Saint Lucia",
           "Liechtenstein","Sri Lanka","Liberia","Lesotho","Lithuania",
-          "Luxembourg","Latvia","Libyan Arab
-          Jamahiriya","Morocco","Monaco","Moldova, Republic
-          of","Madagascar","Marshall Islands","Macedonia","Mali",
+          "Luxembourg","Latvia","Libyan Arab Jamahiriya","Morocco","Monaco",
+          "Moldova, Republic of","Madagascar","Marshall Islands","Macedonia","Mali",
           "Myanmar","Mongolia","Macau","Northern Mariana Islands",
           "Martinique","Mauritania","Montserrat","Malta","Mauritius",
-          "Maldives",
-          "Malawi","Mexico","Malaysia","Mozambique","Namibia",
+          "Maldives", "Malawi","Mexico","Malaysia","Mozambique","Namibia",
           "New Caledonia","Niger","Norfolk Island","Nigeria","Nicaragua",
           "Netherlands","Norway","Nepal","Nauru","Niue",
           "New Zealand","Oman","Panama","Peru","French Polynesia",
@@ -130,8 +127,8 @@
           "Saint Pierre and Miquelon","Pitcairn Islands","Puerto Rico",
           "Palestinian Territory","Portugal","Palau",
           "Paraguay","Qatar","Reunion","Romania","Russian Federation",
-          "Rwanda","Saudi Arabia","Solomon
-          Islands","Seychelles","Sudan", "Sweden","Singapore", "Saint Helena",
+          "Rwanda","Saudi Arabia","Solomon Islands","Seychelles","Sudan",
+          "Sweden","Singapore", "Saint Helena",
           "Slovenia","Svalbard and Jan Mayen","Slovakia","Sierra Leone",
           "San Marino","Senegal","Somalia","Suriname","Sao Tome and Principe",
           "El Salvador","Syrian Arab Republic","Swaziland",
