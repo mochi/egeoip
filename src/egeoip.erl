@@ -206,10 +206,10 @@ handle_cast(What, State) ->
 terminate(_Reason, _State) ->
     ok.
 
-%% @spec code_change(OldVsn, State, Extra) -> NewState
+%% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
 %% @doc gen_server callback.
 code_change(_OldVsn, State, _Extra) ->
-    State.
+    {ok, State}.
 
 %% @spec handle_info(Info, State) -> {noreply, State}
 %% @doc gen_server callback.
