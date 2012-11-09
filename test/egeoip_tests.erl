@@ -13,6 +13,7 @@ run_test_() ->
        {"egeoip_reserved", {generator, fun egeoip_reserved_gen/0}},
        {"country_test", {generator, fun country_test_gen/0}},
        {"country_test2", {generator, fun country_test2_gen/0}},
+       {"Canada test", fun canada/0},
        {"non_parallel", fun non_parallel/0}]}}.
 
 egeoip_reserved_gen() ->
@@ -196,3 +197,16 @@ country_test_data() ->
      {"12.12.197.23", "US", "USA"},
      {"12.12.199.3", "US", "USA"},
      {"12.12.200.79", "US", "USA"}].
+
+canada() ->
+    ?assertMatch(
+        {ok, #geoip{country_code = "CA",
+            country_code3 = "CAN",
+            country_name = "Canada",
+            region = <<"ON">>,
+            city = <<"Toronto">>,
+            postal_code = <<"m5j2n1">>,
+            area_code = 0,
+            dma_code = 1}},
+        egeoip:lookup("209.15.233.59")
+    ).

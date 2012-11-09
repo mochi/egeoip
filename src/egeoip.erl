@@ -386,21 +386,26 @@ get_record(D=#geoipdb{record_length = Length,
     <<_:Seek3/binary, RawLat:24/little, RawLon:24/little, _/binary>> = Data,
     Lat = (RawLat / 10000) - 180,
     Lon = (RawLon / 10000) - 180,
-    {DmaCode, AreaCode} = get_record_ex(Type, Country, Data, Seek3 + 6),
-    #geoip{country_code = Country,
+    GeoIP = #geoip{country_code = Country,
            country_code3 = Country3,
            country_name = CountryName,
            region = Region,
            city = City,
            postal_code = Postal,
            latitude = Lat,
-           longitude = Lon,
+           longitude = Lon
+    },
+    {DmaCode, AreaCode} = get_record_ex(Type, GeoIP, Data, Seek3 + 6),
+    GeoIP#geoip{
            dma_code = DmaCode,
-           area_code = AreaCode}.
+           area_code = AreaCode
+    }.
 
-get_record_ex(?GEOIP_CITY_EDITION_REV1, "US", Data, Seek) ->
+get_record_ex(?GEOIP_CITY_EDITION_REV1, #geoip{country_code="US"}, Data,Seek) ->
     <<_:Seek/binary, Combo:24/little, _/binary>> = Data,
     {Combo div 1000, Combo rem 1000};
+get_record_ex(_Type, #geoip{country_code="CA", city=City}, _Data, _Seek) ->
+    {egeoip_ca_dma:dma_code(City), 0};
 get_record_ex(_, _, _, _) ->
     {0, 0}.
 
