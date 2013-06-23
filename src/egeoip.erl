@@ -243,9 +243,7 @@ new(Path) ->
             State = read_structures(Path, Data, size(Data) - 3, Max),
 
 
-          erlang:display(huy),
             ok = check_state(State),
-          erlang:display(pizda),
             {ok, State};
         false ->
 	    {error, {geoip_db_not_found,Path}}
@@ -340,7 +338,6 @@ read_structures(Path, Data, Seek, N) when N > 0 ->
     <<_:Seek/binary, Delim:3/binary, _/binary>> = Data,
     case Delim of
         <<255, 255, 255>> ->
-          erlang:display(delim),
             <<_:Seek/binary, _:3/binary, DbType, _/binary>> = Data,
             Type = case DbType >= 106 of
                        true ->
