@@ -7,6 +7,7 @@
 -author('bob@redivi.com').
 
 -behaviour(gen_server).
+
 %% record access API
 -export([get/2]).
 -export([record_fields/0]).
@@ -121,8 +122,7 @@ stop() ->
 lookup(Address) when is_integer(Address) ->
     case whereis(egeoip) of
         undefined ->
-             Worker = get_worker(Address),
-
+            Worker = get_worker(Address),
             gen_server:call(Worker, {lookup, Address});
         Pid ->
             unregister(egeoip),
