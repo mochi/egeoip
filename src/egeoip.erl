@@ -234,13 +234,15 @@ new() ->
 %% @spec new(Path) -> {ok, geoipdb()}
 %% @doc Create a new geoipdb database record using the database at Path.
 new(city) ->
-    new(default_db(["GeoIPCity.dat", "GeoLiteCity.dat"]));
+    new(default_db(["GeoIPCity.dat", "GeoLiteCity.dat", "GeoIP.dat"]));
 new(Path) ->
     case filelib:is_file(Path) of
         true ->
             Data = load_file(Path),
             Max = ?STRUCTURE_INFO_MAX_SIZE,
             State = read_structures(Path, Data, size(Data) - 3, Max),
+
+
             ok = check_state(State),
             {ok, State};
         false ->
@@ -325,6 +327,12 @@ ip2long(_) ->
 
 lookup_record(D, Ip) ->
     get_record(D, seek_country(D, Ip)).
+read_structures(Path, Data, _Seek, N) when N == 0 ->
+  #geoipdb{type = ?GEOIP_COUNTRY_EDITION,
+             segments = ?GEOIP_COUNTRY_BEGIN,
+             record_length = ?STANDARD_RECORD_LENGTH,
+             data = Data,
+             filename = Path};
 
 read_structures(Path, Data, Seek, N) when N > 0 ->
     <<_:Seek/binary, Delim:3/binary, _/binary>> = Data,
@@ -370,6 +378,17 @@ read_structures(Path, Data, Seek, N) when N > 0 ->
 
 get_record(D, SeekCountry) when D#geoipdb.segments =:= SeekCountry ->
     #geoip{};
+
+get_record(D=#geoipdb{type = Type},
+           SeekCountry) when Type == ?GEOIP_COUNTRY_EDITION ->
+  CountryNum = SeekCountry - ?GEOIP_COUNTRY_BEGIN,
+  Country = country_code(D, CountryNum),
+  Country3 = country_code3(D, CountryNum),
+  CountryName = country_name(D, CountryNum),
+  #geoip{country_code = Country,
+         country_code3 = Country3,
+         country_name = CountryName};
+
 get_record(D=#geoipdb{record_length = Length,
                       segments = Segments,
                       data = Data,
@@ -414,6 +433,7 @@ seek_country(D, Ip, Offset, Depth) when Depth >= 0 ->
     RB = 8 * RecordLength,
     Seek = 2 * RecordLength * Offset,
     <<_:Seek/binary, L:RB/little, R:RB/little, _/binary>> = D#geoipdb.data,
+
     seek_country(
       D,
       Ip,
