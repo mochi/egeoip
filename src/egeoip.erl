@@ -33,6 +33,11 @@
 
 -include("egeoip.hrl").
 
+%% exports for tests
+-ifdef(TEST).
+-export([address_fast/3]).
+-endif.
+
 %% geoip record API
 
 %% @type geoip_atom() = country_code | country_code3 | country_name |
@@ -300,7 +305,7 @@ address_fast([N0], Num, 0) ->
 ip2long(Address) when is_integer(Address) ->
     {ok, Address};
 ip2long(Address) when is_list(Address) ->
-    case catch address_fast(Address, 0, 24) of
+    case address_fast(Address, 0, 24) of
         N when is_integer(N) ->
             {ok, N};
         _ ->

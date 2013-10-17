@@ -2,6 +2,9 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("egeoip.hrl").
 
+address_fast_test_() ->
+    [?_assertEqual(16909060, egeoip:address_fast("1.2.3.4", 0, 24))].
+
 run_test_() ->
     {inorder,
      {foreach,
@@ -99,6 +102,7 @@ country_test2_data() ->
     [{"212.118.5.94", "JO"},
      {"64.170.57.29", "US"},
      {"202.7.216.215", "AU"},
+     {"1.2.3.4", "AU"},
      {"212.33.164.149", "SA"},
      {"68.96.110.210", "US"},
      {"213.166.131.168", "SA"},
