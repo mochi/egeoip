@@ -263,8 +263,8 @@ default_db([Path | Rest]) ->
             DbPath
     end.
 
-address_fast([N2, N1, N0, $. | Rest], Num, Shift) when Shift >= 8 ->
-    case list_to_integer([N2, N1, N0]) of
+address_fast([N0, $. | Rest], Num, Shift) when Shift >= 8 ->
+    case N0 - $0 of
         N when N =< 255 ->
             address_fast(Rest, Num bor (N bsl Shift), Shift - 8)
     end;
@@ -273,8 +273,8 @@ address_fast([N1, N0, $. | Rest], Num, Shift) when Shift >= 8 ->
         N when N =< 255 ->
             address_fast(Rest, Num bor (N bsl Shift), Shift - 8)
     end;
-address_fast([N0, $. | Rest], Num, Shift) when Shift >= 8 ->
-    case N0 - $0 of
+address_fast([N2, N1, N0, $. | Rest], Num, Shift) when Shift >= 8 ->
+    case list_to_integer([N2, N1, N0]) of
         N when N =< 255 ->
             address_fast(Rest, Num bor (N bsl Shift), Shift - 8)
     end;
