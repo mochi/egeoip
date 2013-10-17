@@ -297,7 +297,9 @@ address_fast([N0], Num, 0) ->
     case N0 - $0 of
         N when N =< 255 ->
             Num bor N
-    end.
+    end;
+address_fast(_N, _Num, _X) ->
+    invalid_fast_address.
 
 %% @spec ip2long(Address) -> {ok, integer()}
 %% @doc Convert an IP address from a string, IPv4 tuple or IPv6 tuple to the

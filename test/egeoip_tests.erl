@@ -3,7 +3,9 @@
 -include("egeoip.hrl").
 
 address_fast_test_() ->
-    [?_assertEqual(16909060, egeoip:address_fast("1.2.3.4", 0, 24))].
+    [?_assertEqual(invalid_fast_address, egeoip:address_fast("1", 0, 24)),
+     ?_assertEqual(16909060, egeoip:address_fast("1.2.3.4", 0, 24)),
+     ?_assertEqual(3573612662, egeoip:address_fast("213.1.0.118", 0 , 24))].
 
 run_test_() ->
     {inorder,
@@ -12,6 +14,7 @@ run_test_() ->
       fun(_) -> egeoip:stop() end,
       [{"egeoip_bench", fun egeoip_bench/0},
        {"egeoip", fun egeoip/0},
+       {"egeoip_fail", fun egeoip_fail/0},
        {"egeoip_lookup", fun egeoip_lookup/0},
        {"egeoip_reserved", {generator, fun egeoip_reserved_gen/0}},
        {"country_test", {generator, fun country_test_gen/0}},
@@ -55,6 +58,18 @@ egeoip() ->
            country_name = "United States",
            region = <<"NY">>,
            _ = _} = R1.
+
+
+egeoip_fail() ->
+    ?assertMatch({ok, #geoip{country_code = "",
+                             country_code3 = "",
+                             country_name = "",
+                             region = <<>>,
+                             city = <<>>,
+                             postal_code = <<>>,
+                             area_code = 0,
+                             dma_code = 0}}, egeoip:lookup("2")),
+    ok.
 
 egeoip_lookup() ->
     {ok, R1} = egeoip:lookup("24.24.24.24"),
