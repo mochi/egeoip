@@ -19,6 +19,19 @@ run_test_() ->
        {"egeoip_reserved", {generator, fun egeoip_reserved_gen/0}},
        {"country_test", {generator, fun country_test_gen/0}},
        {"country_test2", {generator, fun country_test2_gen/0}},
+       {"country_test_countrydb", {generator, fun country_test_gen/0}},
+       {"non_parallel", fun non_parallel/0}]}}.
+
+run_countrydb_test_() ->
+  {inorder,
+     {foreach,
+      fun() -> egeoip:start(country) end,
+      fun(_) -> egeoip:stop() end,
+      [{"egeoip_bench", fun egeoip_bench/0},
+       {"egeoip", fun egeoip_countrydb/0},
+       {"egeoip_lookup", fun egeoip_lookup/0},
+       {"egeoip_reserved", {generator, fun egeoip_reserved_gen/0}},
+       {"country_test2", {generator, fun country_test2_gen/0}},
        {"non_parallel", fun non_parallel/0}]}}.
 
 egeoip_reserved_gen() ->
@@ -70,6 +83,23 @@ egeoip_fail() ->
                              area_code = 0,
                              dma_code = 0}}, egeoip:lookup("2")),
     ok.
+
+%% countrydb doesn't provide region info
+egeoip_countrydb() ->
+    {ok, IpAddressLong} = egeoip:ip2long({207,145,216,106}),
+    {ok, IpAddressLong} = egeoip:ip2long("207.145.216.106"),
+    {ok, IpAddressLong} = egeoip:ip2long(<<207,145,216,106>>),
+    {ok, R} = egeoip:lookup(IpAddressLong),
+    #geoip{country_code = "US",
+           country_code3 = "USA",
+           country_name = "United States",
+           _ = _} = R,
+    %% This is the test IP that MaxMind uses
+    {ok, R1} = egeoip:lookup("24.24.24.24"),
+    #geoip{country_code = "US",
+           country_code3 = "USA",
+           country_name = "United States",
+           _ = _} = R1.
 
 egeoip_lookup() ->
     {ok, R1} = egeoip:lookup("24.24.24.24"),
