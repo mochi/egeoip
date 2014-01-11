@@ -251,7 +251,7 @@ new(Path) ->
             ok = check_state(State),
             {ok, State};
         false ->
-	    {error, {geoip_db_not_found,Path}}
+            {error, {geoip_db_not_found,Path}}
     end.
 
 %% @spec lookup(D::geoipdb(), Addr) -> {ok, geoip()}
@@ -339,7 +339,6 @@ read_structures(Path, Data, _Seek, 0) ->
     #geoipdb{segments = ?GEOIP_COUNTRY_BEGIN,
              data = Data,
              filename = Path};
-
 read_structures(Path, Data, Seek, N) when N > 0 ->
     <<_:Seek/binary, Delim:3/binary, _/binary>> = Data,
     case Delim of
@@ -384,17 +383,14 @@ read_structures(Path, Data, Seek, N) when N > 0 ->
 
 get_record(D, SeekCountry) when D#geoipdb.segments =:= SeekCountry ->
     #geoip{};
-
 get_record(D=#geoipdb{type=?GEOIP_COUNTRY_EDITION}, SeekCountry) ->
   CountryNum = SeekCountry - ?GEOIP_COUNTRY_BEGIN,
   Country = country_code(D, CountryNum),
   Country3 = country_code3(D, CountryNum),
   CountryName = country_name(D, CountryNum),
-  
   #geoip{country_code = Country,
            country_code3 = Country3,
            country_name = CountryName};
-
 get_record(D=#geoipdb{record_length = Length,
                       segments = Segments,
                       data = Data,
