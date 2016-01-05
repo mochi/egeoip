@@ -520,6 +520,11 @@ benchcall(Fun, Times) ->
 pytime({MegaSecs, Secs, MicroSecs}) ->
     (1.0e+6 * MegaSecs) + Secs + (1.0e-6 * MicroSecs).
 
+-ifdef('$otp_old_time').
+-define(TIME_FUNCTION, now).
+-else.
+-define(TIME_FUNCTION, timestamp).
+-endif.
 bench(Count) ->
     SampleIPs = ["63.224.214.117",
                  "144.139.80.91",
@@ -531,10 +536,11 @@ bench(Count) ->
                  "61.16.226.206",
                  "64.180.1.78",
                  "138.217.4.11"],
-    StartParse = now(),
+    StartParse = erlang:?TIME_FUNCTION(),
     benchcall(fun () -> [lookup(X) || X <- SampleIPs] end, Count),
-    EndParse = now(),
+    EndParse = erlang:?TIME_FUNCTION(),
     {parse_100k_addr, pytime(EndParse) - pytime(StartParse)}.
+-undef(TIME_FUNCTION).
 
 ensure_binary_list(L) when is_list(L) ->
     list_to_binary(L);
