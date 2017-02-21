@@ -492,13 +492,12 @@ read_segments(Type, Data, Seek) when Type == ?GEOIP_CITY_EDITION_REV0;
     <<_:Seek/binary, Segments:Bits/little, _/binary>> = Data,
     Segments.
 
-
 priv_path(Components) ->
-    AppDir = case code:which(?MODULE) of
-                 cover_compiled -> "..";
-                 F -> filename:dirname(filename:dirname(F))
-             end,
-    filename:join([AppDir, "priv" | Components]).
+    PrivDir = case code:priv_dir(?APPLICATION) of
+                  {error, _} -> "./priv";
+                  Dir -> Dir
+              end,
+    filename:join([PrivDir | Components]).
 
 load_file(Path) ->
     case file:read_file(Path) of
